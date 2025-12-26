@@ -607,18 +607,21 @@ window.filterByRecent = function() {
     currentFilter = { type: 'recent', value: null };
     updateSidebarActive();
     loadTranscripts();
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
 };
 
 window.filterByAll = function() {
     currentFilter = { type: 'all', value: null };
     updateSidebarActive();
     loadTranscripts();
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
 };
 
 window.filterByFolder = function(folderId) {
     currentFilter = { type: 'folder', value: folderId };
     updateSidebarActive();
     loadTranscripts();
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
 };
 
 function updateSidebarActive() {

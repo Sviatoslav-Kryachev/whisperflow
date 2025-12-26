@@ -2,10 +2,11 @@ from fastapi import APIRouter, UploadFile, Form, HTTPException
 from ..config import AUDIO_DIR, TEXT_DIR
 from ..models import Transcript
 from ..database import SessionLocal
-from ..tasks import process_transcript_sync
+from ..whisper_service import transcribe
 from pathlib import Path
 from datetime import datetime
 import uuid
+import tempfile
 
 router = APIRouter()
 
@@ -14,42 +15,70 @@ async def upload(file: UploadFile, model: str = Form("base")):
     uid = str(uuid.uuid4())
     audio_path = AUDIO_DIR / f"{uid}_{file.filename}"
     db = SessionLocal()
+    temp_path = None
 
     try:
-        # Сохраняем файл (используем pathlib для Unicode имён)
+        # Сохраняем файл
         content = await file.read()
         audio_path.write_bytes(content)
 
-        # Создаём запись в БД со статусом "pending"
+        # Создаём запись в БД
         transcript = Transcript(
             file_id=uid,
             filename=file.filename,
             model=model,
-            status="pending",
-            progress=0.0,
+            status="processing",
+            progress=10.0,
+            status_message="Распознавание речи...",
             created_at=datetime.utcnow()
         )
         db.add(transcript)
         db.commit()
         db.refresh(transcript)
 
-        # Запускаем обработку в фоновом потоке
-        process_transcript_sync(uid, str(audio_path), model, file.filename)
+        # Копируем во временный файл с ASCII именем
+        ext = audio_path.suffix.lower()
+        temp_path = Path(tempfile.gettempdir()) / f"wf_{uuid.uuid4().hex}{ext}"
+        temp_path.write_bytes(content)
+        
+        # Транскрибируем СИНХРОННО
+        text = transcribe(str(temp_path), model)
+        
+        # Сохраняем результат
+        text_path = TEXT_DIR / f"{uid}.txt"
+        text_path.write_text(text, encoding="utf-8")
+        
+        # Обновляем статус
+        transcript.status = "completed"
+        transcript.progress = 100.0
+        transcript.status_message = "Готово"
+        transcript.completed_at = datetime.utcnow()
+        db.commit()
 
         return {
-            "status": "pending",
+            "status": "completed",
             "file_id": uid,
             "filename": file.filename,
             "model": model,
-            "message": "Файл загружен, обработка начата"
+            "message": "Транскрипция завершена"
         }
     except Exception as e:
         db.rollback()
-        # Удаляем файл при ошибке
         if audio_path.exists():
             audio_path.unlink()
-        raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {str(e)}")
+        # Обновляем статус на failed если запись существует
+        try:
+            transcript = db.query(Transcript).filter(Transcript.file_id == uid).first()
+            if transcript:
+                transcript.status = "failed"
+                transcript.error_message = str(e)
+                db.commit()
+        except:
+            pass
+        raise HTTPException(status_code=500, detail=f"Ошибка: {str(e)}")
     finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink(missing_ok=True)
         db.close()
 
 @router.get("/transcript/{file_id}")
