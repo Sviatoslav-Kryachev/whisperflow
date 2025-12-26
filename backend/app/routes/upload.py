@@ -16,10 +16,9 @@ async def upload(file: UploadFile, model: str = Form("base")):
     db = SessionLocal()
 
     try:
-        # Сохраняем файл
-        with open(audio_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        # Сохраняем файл (используем pathlib для Unicode имён)
+        content = await file.read()
+        audio_path.write_bytes(content)
 
         # Создаём запись в БД со статусом "pending"
         transcript = Transcript(
@@ -35,7 +34,7 @@ async def upload(file: UploadFile, model: str = Form("base")):
         db.refresh(transcript)
 
         # Запускаем обработку в фоновом потоке
-        process_transcript_sync(uid, audio_path, model, file.filename)
+        process_transcript_sync(uid, str(audio_path), model, file.filename)
 
         return {
             "status": "pending",
@@ -101,6 +100,7 @@ async def get_status(file_id: str):
             "file_id": file_id,
             "status": transcript.status,
             "progress": transcript.progress,
+            "status_message": transcript.status_message,
             "filename": transcript.filename,
             "model": transcript.model,
             "error_message": transcript.error_message,
@@ -119,7 +119,8 @@ async def retry_transcript(file_id: str):
         if not transcript:
             raise HTTPException(status_code=404, detail="Транскрипция не найдена")
         
-        if transcript.status not in ["failed", "completed"]:
+        # Разрешаем повтор для любого статуса кроме "processing"
+        if transcript.status == "processing":
             raise HTTPException(status_code=400, detail="Транскрипция уже обрабатывается")
         
         # Ищем аудиофайл
@@ -127,17 +128,48 @@ async def retry_transcript(file_id: str):
         if not audio_files:
             raise HTTPException(status_code=404, detail="Аудиофайл не найден")
         
-        audio_path = audio_files[0]
+        audio_path = str(audio_files[0])  # Конвертируем Path в строку
         
         # Сбрасываем статус на pending
         transcript.status = "pending"
         transcript.progress = 0.0
         transcript.error_message = None
         transcript.completed_at = None
+        transcript.status_message = None
         db.commit()
         
-        # Запускаем обработку заново
-        process_transcript_sync(file_id, audio_path, transcript.model, transcript.filename)
+        # Запускаем обработку СИНХРОННО (без потоков - решает проблему Windows)
+        from ..whisper_service import transcribe
+        from ..config import TEXT_DIR
+        from pathlib import Path
+        import tempfile
+        import uuid
+        
+        # Копируем файл
+        source = Path(audio_path)
+        ext = source.suffix.lower()
+        temp_path = Path(tempfile.gettempdir()) / f"wf_{uuid.uuid4().hex}{ext}"
+        temp_path.write_bytes(source.read_bytes())
+        
+        try:
+            transcript.status = "processing"
+            transcript.progress = 10.0
+            transcript.status_message = "Распознавание..."
+            db.commit()
+            
+            text = transcribe(str(temp_path), transcript.model)
+            
+            # Сохраняем
+            text_path = TEXT_DIR / f"{file_id}.txt"
+            text_path.write_text(text, encoding="utf-8")
+            
+            transcript.status = "completed"
+            transcript.progress = 100.0
+            transcript.status_message = "Готово"
+            transcript.completed_at = datetime.utcnow()
+            db.commit()
+        finally:
+            temp_path.unlink(missing_ok=True)
         
         return {
             "status": "pending",
@@ -148,6 +180,8 @@ async def retry_transcript(file_id: str):
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Ошибка повтора: {str(e)}")
+        # Безопасное сообщение об ошибке
+        error_msg = str(e).encode('ascii', 'replace').decode('ascii')
+        raise HTTPException(status_code=500, detail=f"Error: {error_msg}")
     finally:
         db.close()

@@ -25,6 +25,7 @@ class Transcript(Base):
     model = Column(String)
     status = Column(String, default="pending")  # pending, processing, completed, failed
     progress = Column(Float, default=0.0)  # 0.0 - 100.0
+    status_message = Column(String, nullable=True)  # Текущий этап обработки
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(String, nullable=True)

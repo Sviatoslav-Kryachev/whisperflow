@@ -184,14 +184,38 @@ function resetUploadForm() {
     clearMessage();
 }
 
-function showMessage(text, type) {
+let messageTimeout = null;
+
+function showMessage(text, type, duration = 4000) {
     uploadMessage.textContent = text;
     uploadMessage.className = `message ${type}`;
+    
+    // Очищаем предыдущий таймер
+    if (messageTimeout) {
+        clearTimeout(messageTimeout);
+    }
+    
+    // Автоматически скрываем через duration мс
+    if (duration > 0) {
+        messageTimeout = setTimeout(() => {
+            clearMessage();
+        }, duration);
+    }
 }
 
 function clearMessage() {
+    // Плавное скрытие
+    uploadMessage.style.opacity = '0';
+    setTimeout(() => {
     uploadMessage.textContent = "";
     uploadMessage.className = "message";
+        uploadMessage.style.opacity = '';
+    }, 300);
+    
+    if (messageTimeout) {
+        clearTimeout(messageTimeout);
+        messageTimeout = null;
+    }
 }
 
 // Загрузка списка транскрипций
@@ -246,20 +270,30 @@ async function loadTranscripts() {
 
 function renderTranscripts(transcripts) {
     const html = transcripts.map(transcript => {
-        const statusBadge = getStatusBadge(transcript.status, transcript.progress);
+        const statusBadge = getStatusBadge(transcript.status, transcript.progress, transcript.status_message);
         const actions = getActionsForStatus(transcript);
+        const statusMsg = transcript.status_message || '';
+        
+        // Получаем имя папки
+        const folder = transcript.folder_id ? allFolders.find(f => f.id === transcript.folder_id) : null;
+        const folderBadge = folder 
+            ? `<span class="folder-badge" title="Папка: ${escapeHtml(folder.name)}">📂 ${escapeHtml(folder.name)}</span>` 
+            : '';
         
         return `
         <div class="transcript-item" data-file-id="${transcript.id}">
             <div class="transcript-info">
                 <div class="transcript-header">
                     <h3>${escapeHtml(transcript.filename)}</h3>
+                    ${folderBadge}
                     ${statusBadge}
                 </div>
                 ${transcript.status === 'processing' || transcript.status === 'pending' ? 
-                    `<div class="progress-indicator">
+                    `<div class="progress-section">
+                        <div class="progress-indicator">
                         <div class="progress-bar-small" style="width: ${transcript.progress}%"></div>
-                        <span class="progress-text-small">${Math.round(transcript.progress)}%</span>
+                        </div>
+                        <p class="status-message">${escapeHtml(statusMsg)}</p>
                     </div>` : ''
                 }
                 ${transcript.status === 'completed' ? 
@@ -291,36 +325,52 @@ function renderTranscripts(transcripts) {
     });
 }
 
-function getStatusBadge(status, progress) {
+function getStatusBadge(status, progress, statusMessage) {
+    const pendingText = typeof t === 'function' ? t('status.pending') : 'Ожидание';
+    const completedText = typeof t === 'function' ? t('status.completed') : 'Готово';
+    const failedText = typeof t === 'function' ? t('status.failed') : 'Ошибка';
+    
     const badges = {
-        'pending': '<span class="status-badge status-pending">Ожидание</span>',
-        'processing': `<span class="status-badge status-processing">Обработка ${Math.round(progress)}%</span>`,
-        'completed': '<span class="status-badge status-completed">Готово</span>',
-        'failed': '<span class="status-badge status-failed">Ошибка</span>'
+        'pending': `<span class="status-badge status-pending">${pendingText}</span>`,
+        'processing': `<span class="status-badge status-processing">${Math.round(progress)}%</span>`,
+        'completed': `<span class="status-badge status-completed">${completedText}</span>`,
+        'failed': `<span class="status-badge status-failed">${failedText}</span>`
     };
     return badges[status] || '';
 }
 
 function getActionsForStatus(transcript) {
-    const renameBtn = `<button class="btn btn-secondary btn-small" onclick="renameTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')">✏️</button>`;
-    const deleteBtn = `<button class="btn btn-danger btn-small" onclick="deleteTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')">🗑️</button>`;
+    const renameTitle = typeof t === 'function' ? t('action.rename') : 'Переименовать';
+    const deleteTitle = typeof t === 'function' ? t('action.delete') : 'Удалить';
+    const moveTitle = typeof t === 'function' ? t('action.move') : 'Переместить в папку';
+    const viewText = typeof t === 'function' ? t('transcripts.view') : 'Просмотр';
+    const downloadText = typeof t === 'function' ? t('transcripts.download') : 'Скачать';
+    const retryText = typeof t === 'function' ? t('transcripts.retry') : 'Повторить';
+    const processingText = typeof t === 'function' ? t('upload.processing') : 'Обработка...';
+    
+    const renameBtn = `<button class="btn btn-secondary btn-small" onclick="renameTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${renameTitle}">✏️</button>`;
+    const deleteBtn = `<button class="btn btn-danger btn-small" onclick="deleteTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${deleteTitle}">🗑️</button>`;
+    const moveBtn = `<button class="btn btn-secondary btn-small" onclick="openMoveToFolderModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}', ${transcript.folder_id || 'null'})" title="${moveTitle}">📂</button>`;
     
     if (transcript.status === 'completed') {
         return `
-            <button class="btn btn-secondary" onclick="viewTranscript('${transcript.id}')">Просмотр</button>
-            <button class="btn btn-secondary" onclick="downloadTranscript('${transcript.id}')">Скачать</button>
+            <button class="btn btn-secondary" onclick="viewTranscript('${transcript.id}')">${viewText}</button>
+            <button class="btn btn-secondary" onclick="downloadTranscript('${transcript.id}')">${downloadText}</button>
+            ${moveBtn}
             ${renameBtn}
             ${deleteBtn}
         `;
     } else if (transcript.status === 'failed') {
         return `
-            <button class="btn btn-secondary" onclick="retryTranscript('${transcript.id}')">Повторить</button>
+            <button class="btn btn-secondary" onclick="retryTranscript('${transcript.id}')">${retryText}</button>
+            ${moveBtn}
             ${renameBtn}
             ${deleteBtn}
         `;
     } else {
         return `
-            <span class="processing-text">Обработка...</span>
+            <span class="processing-text">${processingText}</span>
+            ${moveBtn}
             ${renameBtn}
             ${deleteBtn}
         `;
@@ -359,7 +409,7 @@ function trackProcessingStatus(fileId) {
             // Обновляем элемент в списке
             const item = document.querySelector(`[data-file-id="${fileId}"]`);
             if (item) {
-                const statusBadge = getStatusBadge(status.status, status.progress);
+                const statusBadge = getStatusBadge(status.status, status.progress, status.status_message);
                 const header = item.querySelector('.transcript-header');
                 if (header) {
                     const h3 = header.querySelector('h3');
@@ -368,12 +418,14 @@ function trackProcessingStatus(fileId) {
                 
                 // Обновляем прогресс
                 const progressBar = item.querySelector('.progress-bar-small');
-                const progressText = item.querySelector('.progress-text-small');
                 if (progressBar) {
                     progressBar.style.width = status.progress + '%';
                 }
-                if (progressText) {
-                    progressText.textContent = Math.round(status.progress) + '%';
+                
+                // Обновляем сообщение статуса
+                const statusMessage = item.querySelector('.status-message');
+                if (statusMessage && status.status_message) {
+                    statusMessage.textContent = status.status_message;
                 }
                 
                 // Обновляем действия
@@ -527,8 +579,10 @@ function renderFolders() {
     const foldersList = document.getElementById('foldersList');
     if (!foldersList) return;
     
+    const noFoldersText = typeof t === 'function' ? t('sidebar.noFolders') : 'Нет папок';
+    
     if (allFolders.length === 0) {
-        foldersList.innerHTML = '<div class="sidebar-empty">Нет папок</div>';
+        foldersList.innerHTML = `<div class="sidebar-empty">${noFoldersText}</div>`;
         return;
     }
     
@@ -676,6 +730,85 @@ document.addEventListener('keydown', function(e) {
     }
     if (e.key === 'Escape') {
         closeFolderModal();
+        closeMoveToFolderModal();
     }
 });
+
+// === Функции перемещения в папку ===
+
+window.openMoveToFolderModal = function(fileId, filename, currentFolderId) {
+    const modal = document.getElementById('moveToFolderModal');
+    const fileIdInput = document.getElementById('moveFileId');
+    const fileNameLabel = document.getElementById('moveFileName');
+    const folderList = document.getElementById('folderSelectList');
+    
+    if (!modal) return;
+    
+    const noFolderText = typeof t === 'function' ? t('modal.noFolder') : 'Без папки';
+    const noFoldersText = typeof t === 'function' ? t('sidebar.noFolders') : 'Нет папок';
+    const createFolderText = typeof t === 'function' ? t('modal.createFolderBtn') : 'Создать папку';
+    
+    fileIdInput.value = fileId;
+    fileNameLabel.textContent = `${filename}`;
+    
+    // Генерируем список папок
+    let html = `
+        <div class="folder-select-item ${currentFolderId === null ? 'active' : ''}" 
+             onclick="moveToFolder('${fileId}', null)">
+            <span class="folder-select-icon">📄</span>
+            <span>${noFolderText}</span>
+            ${currentFolderId === null ? '<span class="folder-select-check">✓</span>' : ''}
+        </div>
+    `;
+    
+    allFolders.forEach(folder => {
+        const isActive = currentFolderId === folder.id;
+        html += `
+            <div class="folder-select-item ${isActive ? 'active' : ''}" 
+                 onclick="moveToFolder('${fileId}', ${folder.id})">
+                <span class="folder-select-icon">📂</span>
+                <span>${escapeHtml(folder.name)}</span>
+                ${isActive ? '<span class="folder-select-check">✓</span>' : ''}
+            </div>
+        `;
+    });
+    
+    if (allFolders.length === 0) {
+        html += `
+            <div class="folder-select-empty">
+                <p>${noFoldersText}</p>
+                <button class="btn btn-secondary" onclick="closeMoveToFolderModal(); openNewFolderModal();">
+                    ${createFolderText}
+                </button>
+            </div>
+        `;
+    }
+    
+    folderList.innerHTML = html;
+    modal.style.display = 'flex';
+};
+
+window.closeMoveToFolderModal = function() {
+    const modal = document.getElementById('moveToFolderModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.moveToFolder = async function(fileId, folderId) {
+    try {
+        await apiMoveToFolder(fileId, folderId);
+        closeMoveToFolderModal();
+        
+        const folderName = folderId 
+            ? allFolders.find(f => f.id === folderId)?.name || 'папку'
+            : 'корень';
+        showMessage(`Файл перемещён в ${folderName}`, 'success');
+        
+        await loadFolders();
+        await loadTranscripts();
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+};
 

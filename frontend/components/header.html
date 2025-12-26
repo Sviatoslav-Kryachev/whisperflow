@@ -4,8 +4,32 @@
             <h2>🎙️ WhisperFlow</h2>
         </div>
         <nav class="header-nav">
-            <a href="dashboard.html" class="nav-link">Dashboard</a>
-            <a href="#" id="logoutLink" class="nav-link nav-link-logout">Выйти</a>
+            <a href="dashboard.html" class="nav-link" data-i18n="nav.dashboard">Dashboard</a>
+            
+            <!-- Language Selector -->
+            <div class="language-selector">
+                <button class="lang-btn" onclick="toggleLanguageDropdown()">
+                    <span id="currentLangFlag">🇷🇺</span>
+                    <span id="currentLangName">Русский</span>
+                    <span class="lang-arrow">▼</span>
+                </button>
+                <div id="languageDropdown" class="language-dropdown">
+                    <div class="lang-option" onclick="setLanguage('ru')">
+                        <span class="lang-flag">🇷🇺</span>
+                        <span class="lang-name">Русский</span>
+                    </div>
+                    <div class="lang-option" onclick="setLanguage('en')">
+                        <span class="lang-flag">🇬🇧</span>
+                        <span class="lang-name">English</span>
+                    </div>
+                    <div class="lang-option" onclick="setLanguage('de')">
+                        <span class="lang-flag">🇩🇪</span>
+                        <span class="lang-name">Deutsch</span>
+                    </div>
+                </div>
+            </div>
+            
+            <a href="#" id="logoutLink" class="nav-link nav-link-logout" data-i18n="nav.logout">Выйти</a>
         </nav>
     </div>
 </div>

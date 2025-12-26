@@ -6,6 +6,13 @@ from .routes import upload, auth, transcripts, folders
 from .database import Base, engine
 from .config import AUDIO_DIR, TEXT_DIR
 from . import models  # импортируем модели для создания таблиц
+import logging
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # преобразуем строки в Path
 AUDIO_DIR = Path(AUDIO_DIR)

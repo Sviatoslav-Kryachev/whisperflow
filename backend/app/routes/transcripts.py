@@ -55,6 +55,7 @@ async def list_transcripts(folder_id: Optional[int] = Query(None), recent: bool 
                 "folder_id": t.folder_id,
                 "status": t.status,
                 "progress": t.progress,
+                "status_message": t.status_message,
                 "model": t.model,
                 "preview": preview,
                 "size": size,
@@ -105,15 +106,21 @@ async def delete_transcript(file_id: str):
         if not transcript:
             raise HTTPException(status_code=404, detail="Транскрипция не найдена")
         
-        # Удаляем файл транскрипции
-        text_path = TEXT_DIR / f"{file_id}.txt"
-        if text_path.exists():
-            text_path.unlink()
+        # Удаляем файл транскрипции (игнорируем ошибки)
+        try:
+            text_path = TEXT_DIR / f"{file_id}.txt"
+            if text_path.exists():
+                text_path.unlink()
+        except:
+            pass
         
-        # Удаляем аудиофайл
-        audio_files = list(AUDIO_DIR.glob(f"{file_id}_*"))
-        for audio_file in audio_files:
-            audio_file.unlink()
+        # Удаляем аудиофайл (игнорируем ошибки)
+        try:
+            audio_files = list(AUDIO_DIR.glob(f"{file_id}_*"))
+            for audio_file in audio_files:
+                audio_file.unlink()
+        except:
+            pass
         
         # Удаляем запись из БД
         db.delete(transcript)
