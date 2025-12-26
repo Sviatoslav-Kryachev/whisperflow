@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhisperFlow - Вход</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>WhisperFlow</h1>
+            <p class="subtitle">Транскрипция аудио с помощью AI</p>
+        </div>
+
+        <!-- Форма входа -->
+        <div id="loginForm" class="auth-form active">
+            <h2>Вход в систему</h2>
+            <div class="form-group">
+                <input type="email" id="username" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" placeholder="Пароль" required>
+            </div>
+            <button id="loginBtn" class="btn btn-primary">Войти</button>
+            <div class="auth-links">
+                <a href="#" id="forgotPasswordLink">Забыли пароль?</a>
+                <a href="#" id="showRegisterLink">Нет аккаунта? Зарегистрироваться</a>
+            </div>
+            <div id="loginMessage" class="message"></div>
+        </div>
+
+        <!-- Форма регистрации -->
+        <div id="registerForm" class="auth-form">
+            <h2>Регистрация</h2>
+            <div class="form-group">
+                <input type="email" id="registerEmail" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="registerPassword" placeholder="Пароль" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="registerPasswordConfirm" placeholder="Подтвердите пароль" required>
+            </div>
+            <button id="registerBtn" class="btn btn-primary">Зарегистрироваться</button>
+            <div class="auth-links">
+                <a href="#" id="showLoginLink">Уже есть аккаунт? Войти</a>
+            </div>
+            <div id="registerMessage" class="message"></div>
+        </div>
+
+        <!-- Форма восстановления пароля -->
+        <div id="forgotPasswordForm" class="auth-form">
+            <h2>Восстановление пароля</h2>
+            <p class="info-text">Введите ваш email, и мы отправим инструкции по восстановлению пароля.</p>
+            <div class="form-group">
+                <input type="email" id="forgotEmail" placeholder="Email" required>
+            </div>
+            <button id="forgotPasswordBtn" class="btn btn-primary">Отправить</button>
+            <div class="auth-links">
+                <a href="#" id="backToLoginLink">Вернуться к входу</a>
+            </div>
+            <div id="forgotPasswordMessage" class="message"></div>
+        </div>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhisperFlow - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div id="header"></div>
+
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Ярлыки</h3>
+                <div class="sidebar-items">
+                    <div class="sidebar-item active" data-filter="recent" onclick="filterByRecent()">
+                        <span class="sidebar-icon">📅</span>
+                        <span>Последние файлы</span>
+                    </div>
+                    <div class="sidebar-item" data-filter="all" onclick="filterByAll()">
+                        <span class="sidebar-icon">📁</span>
+                        <span>Все файлы</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Папки</h3>
+                <div id="foldersList" class="sidebar-items">
+                    <!-- Папки загрузятся динамически -->
+                </div>
+                <button class="sidebar-add-btn" onclick="openNewFolderModal()">
+                    <span class="sidebar-icon">➕</span>
+                    <span>Новая папка</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <div class="dashboard-container">
+            <div class="dashboard-header">
+                <h1>WhisperFlow Dashboard</h1>
+                <p class="subtitle">Загрузите аудиофайл для транскрипции</p>
+            </div>
+
+            <!-- Блок загрузки -->
+            <div class="upload-section">
+            <div class="upload-card">
+                <h2>Загрузка аудио</h2>
+                
+                <div class="file-upload-area" id="fileUploadArea">
+                    <input type="file" id="audioFile" accept="audio/*" hidden>
+                    <div class="upload-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="upload-text">Нажмите или перетащите файл сюда</p>
+                        <p class="upload-hint" id="fileName">Выберите аудиофайл</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="modelSelect">Модель Whisper:</label>
+                    <select id="modelSelect" class="select-input">
+                        <option value="tiny">Tiny (быстрая, менее точная)</option>
+                        <option value="base" selected>Base (рекомендуется)</option>
+                        <option value="small">Small (более точная)</option>
+                        <option value="medium">Medium (очень точная)</option>
+                        <option value="large">Large (максимальная точность)</option>
+                    </select>
+                </div>
+
+                <button id="uploadBtn" class="btn btn-primary btn-large" disabled>
+                    <span id="uploadBtnText">Загрузить и транскрибировать</span>
+                </button>
+
+                <div id="progressContainer" class="progress-container" style="display: none;">
+                    <div class="progress-info">
+                        <span id="progressText">Обработка...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar" id="progressBarFill"></div>
+                    </div>
+                </div>
+
+                <div id="uploadMessage" class="message"></div>
+            </div>
+        </div>
+
+        <!-- Список транскрипций -->
+        <div class="transcripts-section">
+            <h2>Мои транскрипции</h2>
+            <div id="transcriptsList" class="transcripts-list">
+                <div class="empty-state">
+                    <p>Пока нет транскрипций</p>
+                    <p class="hint">Загрузите первый аудиофайл для начала</p>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Modal: Новая папка -->
+    <div id="folderModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeFolderModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">📁</div>
+                <h2>Новая папка</h2>
+                <button class="modal-close" onclick="closeFolderModal()">×</button>
+            </div>
+            <p class="modal-description">Папки группируют связанные файлы вместе.</p>
+            <div class="modal-body">
+                <label for="folderName">Название папки</label>
+                <input type="text" id="folderName" placeholder="Название папки" maxlength="50">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-modal" onclick="createFolder()">СОЗДАТЬ ПАПКУ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div id="footer"></div>
+
+    <script src="js/components.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
