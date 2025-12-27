@@ -28,16 +28,34 @@ function checkAuth() {
 
 // Инициализация при загрузке страницы
 function initDashboard() {
-    if (!checkAuth()) return;
+    console.log('initDashboard called');
+    if (!checkAuth()) {
+        console.log('Auth check failed, redirecting to login');
+        return;
+    }
+    
+    if (!transcriptsList) {
+        console.error('transcriptsList element not found!');
+        return;
+    }
     
     setupFileUpload();
+    
+    // Показываем индикатор загрузки
+    transcriptsList.innerHTML = `
+        <div class="empty-state">
+            <div class="loading-spinner"></div>
+            <p>Инициализация...</p>
+        </div>
+    `;
     
     // Ждём загрузки api.js перед вызовом функций
     const checkApiLoaded = setInterval(() => {
         if (typeof apiListTranscripts === 'function' && typeof apiUploadAudio === 'function') {
             clearInterval(checkApiLoaded);
-            loadFolders();
-            loadTranscripts();
+            console.log("API functions loaded, starting data load...");
+            loadFolders().catch(err => console.error("Error loading folders:", err));
+            loadTranscripts().catch(err => console.error("Error loading transcripts:", err));
         }
     }, 50);
     
@@ -50,18 +68,27 @@ function initDashboard() {
                 <div class="empty-state">
                     <p>Ошибка загрузки</p>
                     <p class="hint">Не удалось загрузить API функции. Обновите страницу.</p>
+                    <button class="btn btn-secondary" onclick="location.reload()" style="margin-top: 10px;">Обновить страницу</button>
                 </div>
             `;
         }
-    }, 2000);
+    }, 3000);
 }
 
 // Запускаем инициализацию после полной загрузки страницы
+console.log('Dashboard script loaded, readyState:', document.readyState);
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDashboard);
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded fired');
+        initDashboard();
+    });
 } else {
     // Если DOM уже загружен, используем window.onload для гарантии загрузки всех скриптов
-    window.addEventListener('load', initDashboard);
+    console.log('DOM already loaded, waiting for window.onload');
+    window.addEventListener('load', () => {
+        console.log('window.onload fired');
+        initDashboard();
+    });
 }
 
 // Настройка загрузки файлов
@@ -115,6 +142,8 @@ function handleFileSelect() {
 uploadBtn.addEventListener("click", async () => {
     const file = fileInput.files[0];
     const model = modelSelect.value;
+    const languageSelect = document.getElementById('languageSelect');
+    const language = languageSelect ? languageSelect.value : 'auto';
 
     if (!file) {
         showMessage("Выберите файл для загрузки", "error");
@@ -140,7 +169,7 @@ uploadBtn.addEventListener("click", async () => {
 
         // Загрузка файла
         updateProgress(30, "Отправка на сервер...");
-        const data = await apiUploadAudio(file, model);
+        const data = await apiUploadAudio(file, model, language);
         clearInterval(progressInterval);
 
         // Сохраняем file_id для отслеживания
@@ -221,6 +250,14 @@ function clearMessage() {
 // Загрузка списка транскрипций
 async function loadTranscripts() {
     try {
+        // Показываем индикатор загрузки
+        transcriptsList.innerHTML = `
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Загрузка транскрипций...</p>
+            </div>
+        `;
+        
         // Проверяем, что функция определена
         if (typeof apiListTranscriptsFiltered !== 'function') {
             console.error("apiListTranscriptsFiltered is not defined");
@@ -262,7 +299,8 @@ async function loadTranscripts() {
         transcriptsList.innerHTML = `
             <div class="empty-state">
                 <p>Ошибка загрузки транскрипций</p>
-                <p class="hint">${err.message}</p>
+                <p class="hint">${escapeHtml(err.message)}</p>
+                <button class="btn btn-secondary" onclick="loadTranscripts()" style="margin-top: 10px;">Повторить</button>
             </div>
         `;
     }
@@ -343,6 +381,7 @@ function getActionsForStatus(transcript) {
     const renameTitle = typeof t === 'function' ? t('action.rename') : 'Переименовать';
     const deleteTitle = typeof t === 'function' ? t('action.delete') : 'Удалить';
     const moveTitle = typeof t === 'function' ? t('action.move') : 'Переместить в папку';
+    const exportTitle = typeof t === 'function' ? t('action.export') : 'Экспорт';
     const viewText = typeof t === 'function' ? t('transcripts.view') : 'Просмотр';
     const downloadText = typeof t === 'function' ? t('transcripts.download') : 'Скачать';
     const retryText = typeof t === 'function' ? t('transcripts.retry') : 'Повторить';
@@ -351,11 +390,13 @@ function getActionsForStatus(transcript) {
     const renameBtn = `<button class="btn btn-secondary btn-small" onclick="renameTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${renameTitle}">✏️</button>`;
     const deleteBtn = `<button class="btn btn-danger btn-small" onclick="deleteTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${deleteTitle}">🗑️</button>`;
     const moveBtn = `<button class="btn btn-secondary btn-small" onclick="openMoveToFolderModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}', ${transcript.folder_id || 'null'})" title="${moveTitle}">📂</button>`;
+    const exportBtn = `<button class="btn btn-secondary btn-small" onclick="openExportModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${exportTitle}">📤</button>`;
     
     if (transcript.status === 'completed') {
         return `
             <button class="btn btn-secondary" onclick="viewTranscript('${transcript.id}')">${viewText}</button>
             <button class="btn btn-secondary" onclick="downloadTranscript('${transcript.id}')">${downloadText}</button>
+            ${exportBtn}
             ${moveBtn}
             ${renameBtn}
             ${deleteBtn}
@@ -565,13 +606,17 @@ window.deleteTranscript = async function(fileId, filename) {
 
 async function loadFolders() {
     try {
-        if (typeof apiListFolders !== 'function') return;
+        if (typeof apiListFolders !== 'function') {
+            console.warn("apiListFolders function not available");
+            return;
+        }
         
         const data = await apiListFolders();
         allFolders = data.folders || [];
         renderFolders();
     } catch (err) {
         console.error("Error loading folders:", err);
+        // Не показываем ошибку пользователю, так как папки не критичны
     }
 }
 
@@ -814,4 +859,179 @@ window.moveToFolder = async function(fileId, folderId) {
         alert('Ошибка: ' + err.message);
     }
 };
+
+// ================================
+// EXPORT MODAL
+// ================================
+
+window.openExportModal = function(fileId, filename) {
+    const modal = document.getElementById('exportModal');
+    const fileIdInput = document.getElementById('exportFileId');
+    const fileNameLabel = document.getElementById('exportFileName');
+    
+    if (!modal || !fileIdInput || !fileNameLabel) return;
+    
+    fileIdInput.value = fileId;
+    fileNameLabel.textContent = filename;
+    modal.style.display = 'flex';
+};
+
+window.closeExportModal = function() {
+    const modal = document.getElementById('exportModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.exportAs = async function(format) {
+    const fileId = document.getElementById('exportFileId')?.value;
+    if (!fileId) return;
+    
+    closeExportModal();
+    
+    const formatNames = {
+        'docx': 'DOCX',
+        'xlsx': 'XLSX', 
+        'srt': 'SRT',
+        'txt': 'TXT'
+    };
+    
+    showMessage(`Экспорт в ${formatNames[format] || format}...`, 'success');
+    
+    try {
+        // Используем API функцию для экспорта
+        if (typeof apiExportTranscript === 'function') {
+            await apiExportTranscript(fileId, format);
+        } else {
+            // Fallback - прямая загрузка через fetch
+            const url = `http://127.0.0.1:8000/export/${format}/${fileId}`;
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `transcript.${format}`;
+            link.click();
+            window.URL.revokeObjectURL(downloadUrl);
+        }
+    } catch (err) {
+        showMessage('Ошибка экспорта: ' + err.message, 'error');
+    }
+};
+
+// FAQ Accordion
+window.toggleFaq = function(element) {
+    const faqItem = element.closest('.faq-item');
+    const isActive = faqItem.classList.contains('active');
+    
+    // Close all other FAQ items
+    document.querySelectorAll('.faq-item.active').forEach(item => {
+        if (item !== faqItem) {
+            item.classList.remove('active');
+        }
+    });
+    
+    // Toggle current item
+    faqItem.classList.toggle('active', !isActive);
+};
+
+// Reviews functionality
+window.openReviewModal = function() {
+    const modal = document.getElementById('reviewModal');
+    modal.style.display = 'flex';
+    
+    // Reset form
+    document.getElementById('reviewAuthor').value = '';
+    document.getElementById('reviewText').value = '';
+    document.getElementById('reviewRating').value = '5';
+    
+    // Reset stars
+    updateStarDisplay(5);
+    
+    // Initialize star rating clicks
+    initStarRating();
+};
+
+window.closeReviewModal = function() {
+    const modal = document.getElementById('reviewModal');
+    modal.style.display = 'none';
+};
+
+function initStarRating() {
+    const stars = document.querySelectorAll('#starRating .star-btn');
+    stars.forEach(star => {
+        star.onclick = function() {
+            const rating = parseInt(this.dataset.rating);
+            document.getElementById('reviewRating').value = rating;
+            updateStarDisplay(rating);
+        };
+    });
+}
+
+function updateStarDisplay(rating) {
+    const stars = document.querySelectorAll('#starRating .star-btn');
+    stars.forEach((star, index) => {
+        if (index < rating) {
+            star.classList.add('active');
+        } else {
+            star.classList.remove('active');
+        }
+    });
+}
+
+window.submitReview = function() {
+    const author = document.getElementById('reviewAuthor').value.trim();
+    const text = document.getElementById('reviewText').value.trim();
+    const rating = parseInt(document.getElementById('reviewRating').value);
+    
+    if (!author) {
+        showMessage('Пожалуйста, укажите ваше имя', 'error');
+        return;
+    }
+    
+    if (!text || text.length < 10) {
+        showMessage('Отзыв должен содержать минимум 10 символов', 'error');
+        return;
+    }
+    
+    // Add review to the grid
+    addReviewToGrid(author, text, rating);
+    
+    // Close modal and show success
+    closeReviewModal();
+    showMessage('Спасибо за ваш отзыв!', 'success');
+};
+
+function addReviewToGrid(author, text, rating) {
+    const reviewsGrid = document.getElementById('reviewsList');
+    
+    const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+    
+    const reviewCard = document.createElement('div');
+    reviewCard.className = 'review-card';
+    reviewCard.innerHTML = `
+        <div class="review-quote">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+            </svg>
+        </div>
+        <p class="review-text">${escapeHtml(text)}</p>
+        <div class="review-rating">
+            ${stars.split('').map(s => `<span class="star">${s}</span>`).join('')}
+        </div>
+        <div class="review-author">${escapeHtml(author)}</div>
+    `;
+    
+    // Add to the beginning
+    reviewsGrid.insertBefore(reviewCard, reviewsGrid.firstChild);
+    
+    // Animate
+    reviewCard.style.opacity = '0';
+    reviewCard.style.transform = 'translateY(-20px)';
+    setTimeout(() => {
+        reviewCard.style.transition = 'all 0.3s ease';
+        reviewCard.style.opacity = '1';
+        reviewCard.style.transform = 'translateY(0)';
+    }, 10);
+}
 

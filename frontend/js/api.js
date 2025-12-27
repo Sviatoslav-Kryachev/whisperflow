@@ -1,165 +1,123 @@
 const API_BASE = "http://127.0.0.1:8000";
 
-async function apiUploadAudio(file, model) {
+// Обёртка для обработки ошибок fetch
+async function safeFetch(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch {
+                const text = await response.text().catch(() => "");
+                errorData = { detail: text || `HTTP ${response.status}: ${response.statusText}` };
+            }
+            throw new Error(errorData.detail || `Ошибка: ${response.status} ${response.statusText}`);
+        }
+        
+        return response;
+    } catch (error) {
+        // Обработка сетевых ошибок (CORS, нет подключения и т.д.)
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            throw new Error("Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000");
+        }
+        throw error;
+    }
+}
+
+async function apiUploadAudio(file, model, language = 'auto') {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("model", model);
+    formData.append("language", language);
 
-    const response = await fetch(`${API_BASE}/upload`, {
+    const response = await safeFetch(`${API_BASE}/upload`, {
         method: "POST",
         body: formData
     });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка загрузки" }));
-        throw new Error(errorData.detail || "Ошибка загрузки");
-    }
 
     return await response.json();
 }
 
 async function apiGetTranscript(fileId) {
-    const response = await fetch(`${API_BASE}/transcript/${fileId}`);
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Транскрипция не найдена" }));
-        throw new Error(errorData.detail || "Транскрипция не найдена");
-    }
-    
+    const response = await safeFetch(`${API_BASE}/transcript/${fileId}`);
     return await response.json();
 }
 
 async function apiListTranscripts() {
-    const response = await fetch(`${API_BASE}/transcripts/list`);
-    
-    if (!response.ok) {
-        throw new Error("Ошибка загрузки списка транскрипций");
-    }
-    
+    const response = await safeFetch(`${API_BASE}/transcripts/list`);
     return await response.json();
 }
 
 async function apiGetStatus(fileId) {
-    const response = await fetch(`${API_BASE}/status/${fileId}`);
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Статус не найден" }));
-        throw new Error(errorData.detail || "Статус не найден");
-    }
-    
+    const response = await safeFetch(`${API_BASE}/status/${fileId}`);
     return await response.json();
 }
 
 async function apiRetryTranscript(fileId) {
-    const response = await fetch(`${API_BASE}/retry/${fileId}`, {
+    const response = await safeFetch(`${API_BASE}/retry/${fileId}`, {
         method: "POST"
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка повтора" }));
-        throw new Error(errorData.detail || "Ошибка повтора");
-    }
-    
     return await response.json();
 }
 
 async function apiRenameTranscript(fileId, newName) {
-    const response = await fetch(`${API_BASE}/transcripts/rename/${fileId}`, {
+    const response = await safeFetch(`${API_BASE}/transcripts/rename/${fileId}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({ new_name: newName })
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка переименования" }));
-        throw new Error(errorData.detail || "Ошибка переименования");
-    }
-    
     return await response.json();
 }
 
 async function apiDeleteTranscript(fileId) {
-    const response = await fetch(`${API_BASE}/transcripts/delete/${fileId}`, {
+    const response = await safeFetch(`${API_BASE}/transcripts/delete/${fileId}`, {
         method: "DELETE"
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка удаления" }));
-        throw new Error(errorData.detail || "Ошибка удаления");
-    }
-    
     return await response.json();
 }
 
 // === Folders API ===
 
 async function apiListFolders() {
-    const response = await fetch(`${API_BASE}/folders/list`);
-    
-    if (!response.ok) {
-        throw new Error("Ошибка загрузки папок");
-    }
-    
+    const response = await safeFetch(`${API_BASE}/folders/list`);
     return await response.json();
 }
 
 async function apiCreateFolder(name) {
-    const response = await fetch(`${API_BASE}/folders/create`, {
+    const response = await safeFetch(`${API_BASE}/folders/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка создания папки" }));
-        throw new Error(errorData.detail || "Ошибка создания папки");
-    }
-    
     return await response.json();
 }
 
 async function apiRenameFolder(folderId, name) {
-    const response = await fetch(`${API_BASE}/folders/rename/${folderId}`, {
+    const response = await safeFetch(`${API_BASE}/folders/rename/${folderId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка переименования папки" }));
-        throw new Error(errorData.detail || "Ошибка переименования папки");
-    }
-    
     return await response.json();
 }
 
 async function apiDeleteFolder(folderId) {
-    const response = await fetch(`${API_BASE}/folders/delete/${folderId}`, {
+    const response = await safeFetch(`${API_BASE}/folders/delete/${folderId}`, {
         method: "DELETE"
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка удаления папки" }));
-        throw new Error(errorData.detail || "Ошибка удаления папки");
-    }
-    
     return await response.json();
 }
 
 async function apiMoveToFolder(fileId, folderId) {
-    const response = await fetch(`${API_BASE}/transcripts/move/${fileId}`, {
+    const response = await safeFetch(`${API_BASE}/transcripts/move/${fileId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ folder_id: folderId })
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Ошибка перемещения" }));
-        throw new Error(errorData.detail || "Ошибка перемещения");
-    }
-    
     return await response.json();
 }
 
@@ -177,11 +135,48 @@ async function apiListTranscriptsFiltered(folderId = null, recent = false) {
         url += '?' + params.toString();
     }
     
-    const response = await fetch(url);
+    const response = await safeFetch(url);
+    return await response.json();
+}
+
+// === Export API ===
+
+function getExportUrl(fileId, format) {
+    return `${API_BASE}/export/${format}/${fileId}`;
+}
+
+async function apiExportTranscript(fileId, format) {
+    const url = getExportUrl(fileId, format);
     
-    if (!response.ok) {
-        throw new Error("Ошибка загрузки списка транскрипций");
+    const response = await safeFetch(url);
+    
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `transcript.${format}`;
+    
+    if (contentDisposition) {
+        // Try to extract filename from header
+        const filenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+        if (filenameMatch) {
+            filename = decodeURIComponent(filenameMatch[1]);
+        } else {
+            const simpleMatch = contentDisposition.match(/filename="([^"]+)"/);
+            if (simpleMatch) {
+                filename = simpleMatch[1];
+            }
+        }
     }
     
-    return await response.json();
+    // Create blob and download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+    
+    return true;
 }

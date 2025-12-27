@@ -1,9 +1,10 @@
 // Загрузка компонентов (header, footer)
 async function loadComponent(id, url) {
     try {
+        console.log(`Loading component: ${id} from ${url}`);
         const response = await fetch(url);
         if (!response.ok) {
-            console.error(`Failed to load component ${url}`);
+            console.error(`Failed to load component ${url}: ${response.status} ${response.statusText}`);
             return;
         }
         const html = await response.text();
@@ -22,6 +23,9 @@ async function loadComponent(id, url) {
                     });
                 }
             }
+            console.log(`Component ${id} loaded successfully`);
+        } else {
+            console.warn(`Element with id "${id}" not found`);
         }
     } catch (error) {
         console.error(`Error loading component ${url}:`, error);
@@ -30,6 +34,15 @@ async function loadComponent(id, url) {
 
 // Загружаем компоненты при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    loadComponent('header', 'components/header.html');
-    loadComponent('footer', 'components/footer.html');
+    console.log('Loading components...');
+    loadComponent('header', 'components/header.html').then(() => {
+        console.log('Header loaded');
+    }).catch(err => {
+        console.error('Error loading header:', err);
+    });
+    loadComponent('footer', 'components/footer.html').then(() => {
+        console.log('Footer loaded');
+    }).catch(err => {
+        console.error('Error loading footer:', err);
+    });
 });

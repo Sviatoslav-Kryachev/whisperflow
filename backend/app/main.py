@@ -2,10 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from .routes import upload, auth, transcripts, folders
-from .database import Base, engine
+from .routes import upload, auth, transcripts, folders, export
+from .database import Base, engine, SessionLocal
 from .config import AUDIO_DIR, TEXT_DIR
 from . import models  # импортируем модели для создания таблиц
+from .models import Transcript
 import logging
 
 # Настройка логирования
@@ -13,6 +14,8 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+logger = logging.getLogger(__name__)
 
 # преобразуем строки в Path
 AUDIO_DIR = Path(AUDIO_DIR)
@@ -30,6 +33,32 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="WhisperFlow")
 
+
+@app.on_event("startup")
+async def reset_stuck_transcripts():
+    """При старте сервера сбрасываем зависшие транскрипции"""
+    db = SessionLocal()
+    try:
+        stuck = db.query(Transcript).filter(
+            Transcript.status.in_(['pending', 'processing'])
+        ).all()
+        
+        if stuck:
+            logger.warning(f"Found {len(stuck)} stuck transcripts, resetting to failed...")
+            for t in stuck:
+                t.status = 'failed'
+                t.error_message = 'Server was restarted. Click Retry to process again.'
+                t.status_message = 'Interrupted - click Retry'
+            db.commit()
+            logger.info(f"Reset {len(stuck)} stuck transcripts")
+        else:
+            logger.info("No stuck transcripts found")
+    except Exception as e:
+        logger.error(f"Error resetting stuck transcripts: {e}")
+    finally:
+        db.close()
+
+
 # CORS для фронтенда
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +72,7 @@ app.include_router(upload.router)
 app.include_router(auth.router)
 app.include_router(transcripts.router)
 app.include_router(folders.router)
+app.include_router(export.router)
 
 # Раздаём статические файлы фронтенда (CSS, JS, компоненты)
 if FRONTEND_DIR.exists():

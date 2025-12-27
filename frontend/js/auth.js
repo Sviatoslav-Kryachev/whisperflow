@@ -96,8 +96,13 @@ loginBtn?.addEventListener("click", async () => {
         });
 
         if (!response.ok) {
-            const data = await response.json().catch(() => ({ detail: "Ошибка входа" }));
-            showMessage(loginMessage, data.detail || "Неверный email или пароль", "error");
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch {
+                errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+            }
+            showMessage(loginMessage, errorData.detail || "Неверный email или пароль", "error");
             return;
         }
 
@@ -110,7 +115,11 @@ loginBtn?.addEventListener("click", async () => {
         }, 1000);
 
     } catch (err) {
-        showMessage(loginMessage, "Ошибка подключения: " + err.message, "error");
+        let errorMsg = err.message;
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+        }
+        showMessage(loginMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = "Войти";
@@ -151,8 +160,13 @@ registerBtn?.addEventListener("click", async () => {
         });
 
         if (!response.ok) {
-            const data = await response.json().catch(() => ({ detail: "Ошибка регистрации" }));
-            showMessage(registerMessage, data.detail || "Ошибка регистрации", "error");
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch {
+                errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+            }
+            showMessage(registerMessage, errorData.detail || "Ошибка регистрации", "error");
             return;
         }
 
@@ -165,7 +179,11 @@ registerBtn?.addEventListener("click", async () => {
         }, 1000);
 
     } catch (err) {
-        showMessage(registerMessage, "Ошибка подключения: " + err.message, "error");
+        let errorMsg = err.message;
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+        }
+        showMessage(registerMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
         registerBtn.disabled = false;
         registerBtn.textContent = "Зарегистрироваться";
@@ -193,11 +211,26 @@ forgotPasswordBtn?.addEventListener("click", async () => {
             body: JSON.stringify({ email })
         });
 
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch {
+                errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+            }
+            showMessage(forgotPasswordMessage, errorData.message || errorData.detail || "Ошибка отправки", "error");
+            return;
+        }
+
         const data = await response.json();
         showMessage(forgotPasswordMessage, data.message || "Инструкции отправлены на ваш email", "success");
 
     } catch (err) {
-        showMessage(forgotPasswordMessage, "Ошибка подключения: " + err.message, "error");
+        let errorMsg = err.message;
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+        }
+        showMessage(forgotPasswordMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
         forgotPasswordBtn.disabled = false;
         forgotPasswordBtn.textContent = "Отправить";

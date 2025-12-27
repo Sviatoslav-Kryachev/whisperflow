@@ -7,8 +7,8 @@ import uuid
 import os
 
 
-def transcribe(audio_path, model_name):
-    """Простая транскрипция"""
+def transcribe(audio_path, model_name, language=None):
+    """Простая транскрипция с опциональным указанием языка"""
     source = Path(audio_path)
     
     # Проверяем, нужно ли копировать (если путь уже temp - не копируем)
@@ -27,7 +27,13 @@ def transcribe(audio_path, model_name):
     
     try:
         model = whisper.load_model(model_name)
-        result = model.transcribe(safe_path)
+        
+        # Параметры транскрипции
+        transcribe_options = {}
+        if language:
+            transcribe_options['language'] = language
+        
+        result = model.transcribe(safe_path, **transcribe_options)
 
         lines = []
         for seg in result["segments"]:

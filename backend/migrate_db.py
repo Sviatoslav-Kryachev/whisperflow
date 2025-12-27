@@ -47,6 +47,13 @@ def migrate():
         else:
             print("[OK] status_message column already exists")
         
+        # Add language if missing
+        if 'language' not in columns:
+            cursor.execute("ALTER TABLE transcripts ADD COLUMN language VARCHAR")
+            print("[OK] language column added to transcripts")
+        else:
+            print("[OK] language column already exists")
+        
         conn.commit()
         print("\n[SUCCESS] Migration completed!")
         

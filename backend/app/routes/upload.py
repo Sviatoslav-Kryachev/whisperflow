@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Form, HTTPException
+from fastapi import APIRouter, UploadFile, Form, HTTPException, BackgroundTasks
 from ..config import AUDIO_DIR, TEXT_DIR
 from ..models import Transcript
 from ..database import SessionLocal
@@ -7,15 +7,67 @@ from pathlib import Path
 from datetime import datetime
 import uuid
 import tempfile
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def process_transcription_background(file_id: str, temp_path: Path, model: str, language: str = None):
+    """Фоновая обработка транскрипции (выполняется в отдельном потоке)"""
+    db = SessionLocal()
+    try:
+        transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
+        if not transcript:
+            return
+        
+        transcript.status = "processing"
+        transcript.progress = 30.0
+        lang_msg = f" ({language})" if language else " (авто)"
+        transcript.status_message = f"Распознавание речи{lang_msg}..."
+        db.commit()
+        
+        # Транскрибируем
+        text = transcribe(str(temp_path), model, language)
+        
+        # Сохраняем результат
+        text_path = TEXT_DIR / f"{file_id}.txt"
+        text_path.write_text(text, encoding="utf-8")
+        
+        # Обновляем статус
+        transcript.status = "completed"
+        transcript.progress = 100.0
+        transcript.status_message = "Готово"
+        transcript.completed_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Transcription completed: {file_id}")
+        
+    except Exception as e:
+        logger.error(f"Transcription failed for {file_id}: {e}")
+        try:
+            transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
+            if transcript:
+                transcript.status = "failed"
+                transcript.error_message = str(e)
+                transcript.status_message = "Ошибка"
+                db.commit()
+        except:
+            pass
+    finally:
+        # Удаляем временный файл
+        if temp_path and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except:
+                pass
+        db.close()
+
 
 @router.post("/upload")
-async def upload(file: UploadFile, model: str = Form("base")):
+async def upload(file: UploadFile, model: str = Form("base"), language: str = Form("auto"), background_tasks: BackgroundTasks = None):
     uid = str(uuid.uuid4())
     audio_path = AUDIO_DIR / f"{uid}_{file.filename}"
     db = SessionLocal()
-    temp_path = None
 
     try:
         # Сохраняем файл
@@ -27,9 +79,10 @@ async def upload(file: UploadFile, model: str = Form("base")):
             file_id=uid,
             filename=file.filename,
             model=model,
-            status="processing",
+            language=language if language != 'auto' else None,
+            status="pending",
             progress=10.0,
-            status_message="Распознавание речи...",
+            status_message="Загрузка файла...",
             created_at=datetime.utcnow()
         )
         db.add(transcript)
@@ -41,44 +94,33 @@ async def upload(file: UploadFile, model: str = Form("base")):
         temp_path = Path(tempfile.gettempdir()) / f"wf_{uuid.uuid4().hex}{ext}"
         temp_path.write_bytes(content)
         
-        # Транскрибируем СИНХРОННО
-        text = transcribe(str(temp_path), model)
-        
-        # Сохраняем результат
-        text_path = TEXT_DIR / f"{uid}.txt"
-        text_path.write_text(text, encoding="utf-8")
-        
-        # Обновляем статус
-        transcript.status = "completed"
-        transcript.progress = 100.0
-        transcript.status_message = "Готово"
-        transcript.completed_at = datetime.utcnow()
-        db.commit()
+        # Запускаем обработку в фоне
+        lang_param = language if language != 'auto' else None
+        if background_tasks:
+            background_tasks.add_task(process_transcription_background, uid, temp_path, model, lang_param)
+        else:
+            # Fallback: запускаем в том же потоке (если background_tasks не доступен)
+            import threading
+            thread = threading.Thread(
+                target=process_transcription_background,
+                args=(uid, temp_path, model, lang_param)
+            )
+            thread.start()
 
         return {
-            "status": "completed",
+            "status": "pending",
             "file_id": uid,
             "filename": file.filename,
             "model": model,
-            "message": "Транскрипция завершена"
+            "language": language,
+            "message": "Файл загружен, обработка начата"
         }
     except Exception as e:
         db.rollback()
         if audio_path.exists():
             audio_path.unlink()
-        # Обновляем статус на failed если запись существует
-        try:
-            transcript = db.query(Transcript).filter(Transcript.file_id == uid).first()
-            if transcript:
-                transcript.status = "failed"
-                transcript.error_message = str(e)
-                db.commit()
-        except:
-            pass
         raise HTTPException(status_code=500, detail=f"Ошибка: {str(e)}")
     finally:
-        if temp_path and temp_path.exists():
-            temp_path.unlink(missing_ok=True)
         db.close()
 
 @router.get("/transcript/{file_id}")
@@ -140,7 +182,7 @@ async def get_status(file_id: str):
         db.close()
 
 @router.post("/retry/{file_id}")
-async def retry_transcript(file_id: str):
+async def retry_transcript(file_id: str, background_tasks: BackgroundTasks = None):
     """Повторить обработку неудачной транскрипции"""
     db = SessionLocal()
     try:
@@ -157,48 +199,32 @@ async def retry_transcript(file_id: str):
         if not audio_files:
             raise HTTPException(status_code=404, detail="Аудиофайл не найден")
         
-        audio_path = str(audio_files[0])  # Конвертируем Path в строку
+        audio_path = audio_files[0]
         
         # Сбрасываем статус на pending
         transcript.status = "pending"
-        transcript.progress = 0.0
+        transcript.progress = 10.0
         transcript.error_message = None
         transcript.completed_at = None
-        transcript.status_message = None
+        transcript.status_message = "Подготовка..."
+        model = transcript.model
         db.commit()
         
-        # Запускаем обработку СИНХРОННО (без потоков - решает проблему Windows)
-        from ..whisper_service import transcribe
-        from ..config import TEXT_DIR
-        from pathlib import Path
-        import tempfile
-        import uuid
-        
-        # Копируем файл
-        source = Path(audio_path)
-        ext = source.suffix.lower()
+        # Копируем файл во временную директорию
+        ext = audio_path.suffix.lower()
         temp_path = Path(tempfile.gettempdir()) / f"wf_{uuid.uuid4().hex}{ext}"
-        temp_path.write_bytes(source.read_bytes())
+        temp_path.write_bytes(audio_path.read_bytes())
         
-        try:
-            transcript.status = "processing"
-            transcript.progress = 10.0
-            transcript.status_message = "Распознавание..."
-            db.commit()
-            
-            text = transcribe(str(temp_path), transcript.model)
-            
-            # Сохраняем
-            text_path = TEXT_DIR / f"{file_id}.txt"
-            text_path.write_text(text, encoding="utf-8")
-            
-            transcript.status = "completed"
-            transcript.progress = 100.0
-            transcript.status_message = "Готово"
-            transcript.completed_at = datetime.utcnow()
-            db.commit()
-        finally:
-            temp_path.unlink(missing_ok=True)
+        # Запускаем обработку в фоне
+        if background_tasks:
+            background_tasks.add_task(process_transcription_background, file_id, temp_path, model)
+        else:
+            import threading
+            thread = threading.Thread(
+                target=process_transcription_background,
+                args=(file_id, temp_path, model)
+            )
+            thread.start()
         
         return {
             "status": "pending",
@@ -209,7 +235,6 @@ async def retry_transcript(file_id: str):
         raise
     except Exception as e:
         db.rollback()
-        # Безопасное сообщение об ошибке
         error_msg = str(e).encode('ascii', 'replace').decode('ascii')
         raise HTTPException(status_code=500, detail=f"Error: {error_msg}")
     finally:

@@ -23,6 +23,7 @@ class Transcript(Base):
     folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
     filename = Column(String)
     model = Column(String)
+    language = Column(String, nullable=True)  # Язык аудио (None = автоопределение)
     status = Column(String, default="pending")  # pending, processing, completed, failed
     progress = Column(Float, default=0.0)  # 0.0 - 100.0
     status_message = Column(String, nullable=True)  # Текущий этап обработки
