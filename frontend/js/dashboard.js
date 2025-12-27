@@ -138,6 +138,9 @@ function handleFileSelect() {
     }
 }
 
+// Переменные для хранения данных о загрузке дубликата
+let pendingUploadData = null;
+
 // Загрузка и транскрипция
 uploadBtn.addEventListener("click", async () => {
     const file = fileInput.files[0];
@@ -150,6 +153,29 @@ uploadBtn.addEventListener("click", async () => {
         return;
     }
 
+    // Проверяем дубликаты перед загрузкой
+    try {
+        const duplicateCheck = await apiCheckDuplicate(file.name);
+        
+        if (duplicateCheck.has_duplicates && duplicateCheck.similar_files.length > 0) {
+            // Сохраняем данные для загрузки после подтверждения
+            pendingUploadData = { file, model, language };
+            
+            // Показываем модальное окно с дубликатами
+            openDuplicateModal(file.name, duplicateCheck.similar_files);
+            return;
+        }
+    } catch (err) {
+        console.warn("Ошибка при проверке дубликатов:", err);
+        // Продолжаем загрузку, если проверка не удалась
+    }
+
+    // Если дубликатов нет, загружаем файл
+    await performUpload(file, model, language);
+});
+
+// Функция для выполнения загрузки
+async function performUpload(file, model, language) {
     // Блокируем кнопку и показываем прогресс
     uploadBtn.disabled = true;
     uploadBtnText.textContent = "Обработка...";
@@ -194,7 +220,7 @@ uploadBtn.addEventListener("click", async () => {
         uploadBtn.disabled = false;
         uploadBtnText.textContent = "Загрузить и транскрибировать";
     }
-});
+}
 
 function updateProgress(percent, text) {
     progressBarFill.style.width = percent + "%";
@@ -296,10 +322,28 @@ async function loadTranscripts() {
         }
     } catch (err) {
         console.error("Error loading transcripts:", err);
+        
+        // Более детальная обработка ошибок подключения
+        let errorMessage = err.message;
+        let errorHint = '';
+        
+        if (errorMessage.includes('подключения к серверу') || errorMessage.includes('fetch')) {
+            errorHint = `
+                <div style="margin-top: 10px; padding: 10px; background: #fee2e2; border-radius: 6px; text-align: left;">
+                    <strong>Сервер не доступен</strong><br>
+                    <small>1. Убедитесь, что сервер запущен:<br>
+                    <code style="background: white; padding: 2px 4px; border-radius: 3px;">cd backend && uvicorn app.main:app --reload</code><br><br>
+                    2. Проверьте, что сервер работает на порту 8000<br>
+                    3. Обновите страницу после запуска сервера</small>
+                </div>
+            `;
+        }
+        
         transcriptsList.innerHTML = `
             <div class="empty-state">
                 <p>Ошибка загрузки транскрипций</p>
-                <p class="hint">${escapeHtml(err.message)}</p>
+                <p class="hint">${escapeHtml(errorMessage)}</p>
+                ${errorHint}
                 <button class="btn btn-secondary" onclick="loadTranscripts()" style="margin-top: 10px;">Повторить</button>
             </div>
         `;
@@ -382,6 +426,7 @@ function getActionsForStatus(transcript) {
     const deleteTitle = typeof t === 'function' ? t('action.delete') : 'Удалить';
     const moveTitle = typeof t === 'function' ? t('action.move') : 'Переместить в папку';
     const exportTitle = typeof t === 'function' ? t('action.export') : 'Экспорт';
+    const aiTitle = 'AI-анализ';
     const viewText = typeof t === 'function' ? t('transcripts.view') : 'Просмотр';
     const downloadText = typeof t === 'function' ? t('transcripts.download') : 'Скачать';
     const retryText = typeof t === 'function' ? t('transcripts.retry') : 'Повторить';
@@ -391,12 +436,14 @@ function getActionsForStatus(transcript) {
     const deleteBtn = `<button class="btn btn-danger btn-small" onclick="deleteTranscript('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${deleteTitle}">🗑️</button>`;
     const moveBtn = `<button class="btn btn-secondary btn-small" onclick="openMoveToFolderModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}', ${transcript.folder_id || 'null'})" title="${moveTitle}">📂</button>`;
     const exportBtn = `<button class="btn btn-secondary btn-small" onclick="openExportModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${exportTitle}">📤</button>`;
+    const aiBtn = `<button class="btn btn-primary btn-small" onclick="openAIModal('${transcript.id}', '${escapeHtml(transcript.filename || '')}')" title="${aiTitle}">🤖</button>`;
     
     if (transcript.status === 'completed') {
         return `
             <button class="btn btn-secondary" onclick="viewTranscript('${transcript.id}')">${viewText}</button>
             <button class="btn btn-secondary" onclick="downloadTranscript('${transcript.id}')">${downloadText}</button>
             ${exportBtn}
+            ${aiBtn}
             ${moveBtn}
             ${renameBtn}
             ${deleteBtn}
@@ -509,14 +556,14 @@ function formatSize(bytes) {
 window.viewTranscript = async function(fileId) {
     try {
         const data = await apiGetTranscript(fileId);
-        // Показываем транскрипцию в модальном окне или новом окне
-        const transcriptText = data.transcript || "";
-        const blob = new Blob([transcriptText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, '_blank');
-        if (newWindow) {
-            newWindow.document.write(`<pre style="padding: 20px; font-family: monospace;">${escapeHtml(transcriptText)}</pre>`);
+        
+        if (data.status && data.status !== 'completed') {
+            alert("Транскрипция ещё не готова. Статус: " + data.status);
+            return;
         }
+        
+        // Открываем модальное окно с аудиоплеером
+        await openTranscriptViewModal(fileId, data);
     } catch (err) {
         alert("Ошибка: " + err.message);
     }
@@ -690,6 +737,11 @@ function updateSidebarActive() {
 
 // Модальное окно папки
 window.openNewFolderModal = function() {
+    // Закрываем другие модальные окна
+    closeAIModal();
+    closeTranscriptViewModal();
+    closeReviewModal();
+    
     const modal = document.getElementById('folderModal');
     const input = document.getElementById('folderName');
     if (modal) {
@@ -937,6 +989,11 @@ window.toggleFaq = function(element) {
 
 // Reviews functionality
 window.openReviewModal = function() {
+    // Закрываем другие модальные окна
+    closeAIModal();
+    closeTranscriptViewModal();
+    closeFolderModal();
+    
     const modal = document.getElementById('reviewModal');
     modal.style.display = 'flex';
     
@@ -1035,3 +1092,1137 @@ function addReviewToGrid(author, text, rating) {
     }, 10);
 }
 
+// === AI Modal Functions ===
+
+window.openAIModal = async function(fileId, filename) {
+    // Закрываем другие модальные окна
+    closeTranscriptViewModal();
+    closeFolderModal();
+    closeReviewModal();
+    
+    const modal = document.getElementById('aiModal');
+    const modalContent = modal.querySelector('.ai-modal-content');
+    
+    // Устанавливаем fileId
+    modal.dataset.fileId = fileId;
+    document.getElementById('aiFileName').textContent = filename || 'Транскрипция';
+    
+    // Показываем модальное окно
+    modal.style.display = 'flex';
+    
+    // Загружаем существующие AI-данные
+    await loadAIData(fileId);
+};
+
+window.closeAIModal = function() {
+    const modal = document.getElementById('aiModal');
+    modal.style.display = 'none';
+};
+
+async function loadAIData(fileId) {
+    const loadingDiv = document.getElementById('aiLoading');
+    const contentDiv = document.getElementById('aiContent');
+    const errorDiv = document.getElementById('aiError');
+    
+    // Показываем загрузку
+    loadingDiv.style.display = 'block';
+    contentDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    
+    try {
+        if (typeof apiGetAIData !== 'function') {
+            throw new Error('API функция не загружена');
+        }
+        
+        const data = await apiGetAIData(fileId);
+        
+        // Скрываем загрузку, показываем контент
+        loadingDiv.style.display = 'none';
+        contentDiv.style.display = 'block';
+        
+        // Обновляем данные
+        updateAIDisplay(data);
+    } catch (err) {
+        console.error('Error loading AI data:', err);
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Ошибка загрузки: ' + err.message;
+    }
+}
+
+function updateAIDisplay(data) {
+    // Резюме
+    const summaryDiv = document.getElementById('aiSummary');
+    if (data.summary) {
+        summaryDiv.innerHTML = `
+            <div class="ai-section-content">
+                <p>${escapeHtml(data.summary)}</p>
+                ${data.summary_created_at ? `<small class="ai-timestamp">Создано: ${formatDate(data.summary_created_at)}</small>` : ''}
+            </div>
+        `;
+    } else {
+        summaryDiv.innerHTML = '<div class="ai-section-empty">Резюме ещё не создано</div>';
+    }
+    
+    // Ключевые слова
+    const keywordsDiv = document.getElementById('aiKeywords');
+    if (data.keywords && data.keywords.length > 0) {
+        const keywordsHtml = data.keywords.map(kw => `<span class="keyword-tag">${escapeHtml(kw)}</span>`).join('');
+        keywordsDiv.innerHTML = `
+            <div class="ai-section-content">
+                <div class="keywords-list">${keywordsHtml}</div>
+                ${data.keywords_created_at ? `<small class="ai-timestamp">Создано: ${formatDate(data.keywords_created_at)}</small>` : ''}
+            </div>
+        `;
+    } else {
+        keywordsDiv.innerHTML = '<div class="ai-section-empty">Ключевые слова ещё не извлечены</div>';
+    }
+    
+    // Sentiment
+    const sentimentDiv = document.getElementById('aiSentiment');
+    if (data.sentiment) {
+        const sentiment = data.sentiment;
+        const sentimentClass = sentiment.sentiment === 'positive' ? 'sentiment-positive' : 
+                              sentiment.sentiment === 'negative' ? 'sentiment-negative' : 'sentiment-neutral';
+        const sentimentEmoji = sentiment.sentiment === 'positive' ? '😊' : 
+                               sentiment.sentiment === 'negative' ? '😞' : '😐';
+        sentimentDiv.innerHTML = `
+            <div class="ai-section-content">
+                <div class="sentiment-display ${sentimentClass}">
+                    <span class="sentiment-emoji">${sentimentEmoji}</span>
+                    <span class="sentiment-label">${sentiment.sentiment === 'positive' ? 'Позитивная' : 
+                                                   sentiment.sentiment === 'negative' ? 'Негативная' : 'Нейтральная'}</span>
+                    <span class="sentiment-score">${(sentiment.score * 100).toFixed(0)}%</span>
+                </div>
+                ${data.sentiment_created_at ? `<small class="ai-timestamp">Создано: ${formatDate(data.sentiment_created_at)}</small>` : ''}
+            </div>
+        `;
+    } else {
+        sentimentDiv.innerHTML = '<div class="ai-section-empty">Тональность ещё не проанализирована</div>';
+    }
+    
+    // Категория
+    const categoryDiv = document.getElementById('aiCategory');
+    if (data.category) {
+        categoryDiv.innerHTML = `
+            <div class="ai-section-content">
+                <div class="category-display">
+                    <span class="category-label">${escapeHtml(data.category)}</span>
+                    ${data.category_confidence ? `<span class="category-confidence">${(data.category_confidence * 100).toFixed(0)}%</span>` : ''}
+                </div>
+                ${data.category_created_at ? `<small class="ai-timestamp">Создано: ${formatDate(data.category_created_at)}</small>` : ''}
+            </div>
+        `;
+    } else {
+        categoryDiv.innerHTML = '<div class="ai-section-empty">Категория ещё не определена</div>';
+    }
+    
+    // Переводы
+    const translationsDiv = document.getElementById('aiTranslations');
+    if (data.translations && Object.keys(data.translations).length > 0) {
+        const translationsHtml = Object.entries(data.translations).map(([lang, trans]) => {
+            return `
+                <div class="translation-item">
+                    <div class="translation-header">
+                        <strong>${lang.toUpperCase()}</strong>
+                        ${trans.created_at ? `<small>${formatDate(trans.created_at)}</small>` : ''}
+                    </div>
+                    <p class="translation-text">${escapeHtml(trans.text)}</p>
+                </div>
+            `;
+        }).join('');
+        translationsDiv.innerHTML = `<div class="ai-section-content">${translationsHtml}</div>`;
+    } else {
+        translationsDiv.innerHTML = '<div class="ai-section-empty">Переводы ещё не созданы</div>';
+    }
+}
+
+// AI Actions
+window.generateSummary = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Создание...';
+    
+    try {
+        await apiGenerateSummary(fileId);
+        showMessage('Резюме создано!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+window.extractKeywords = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Извлечение...';
+    
+    try {
+        await apiExtractKeywords(fileId);
+        showMessage('Ключевые слова извлечены!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+window.analyzeSentiment = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Анализ...';
+    
+    try {
+        await apiAnalyzeSentiment(fileId);
+        showMessage('Тональность проанализирована!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+window.classifyTranscript = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Классификация...';
+    
+    try {
+        await apiClassifyTranscript(fileId);
+        showMessage('Категория определена!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+window.analyzeAllAI = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Анализ...';
+    
+    try {
+        await apiAnalyzeAll(fileId);
+        showMessage('Все анализы выполнены!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+window.translateTranscript = async function() {
+    const fileId = document.getElementById('aiModal').dataset.fileId;
+    if (!fileId) return;
+    
+    const targetLang = prompt('Введите код языка (например: en, de, fr):', 'en');
+    if (!targetLang) return;
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Перевод...';
+    
+    try {
+        await apiTranslateTranscript(fileId, targetLang);
+        showMessage('Перевод выполнен!', 'success');
+        await loadAIData(fileId);
+    } catch (err) {
+        showMessage('Ошибка: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+// ================================
+// AUDIO PLAYER WITH TRANSCRIPT SYNC
+// ================================
+
+let transcriptSegments = [];
+let currentSegmentIndex = -1;
+let audioPlayer = null;
+let transcriptViewFileId = null;
+let translationEnabled = false;
+let translationLanguage = 'ru';
+let segmentTranslations = {}; // Кэш переводов: {segmentIndex: {language: translatedText}}
+
+// Парсинг транскрипции на сегменты
+function parseTranscriptSegments(text) {
+    const segments = [];
+    const lines = text.trim().split('\n');
+    
+    // Pattern: [00:00:00 --> 00:00:05]  Text here
+    const pattern = /\[(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s*-->\s*(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\]\s*(.+)/;
+    
+    lines.forEach((line, index) => {
+        const match = line.trim().match(pattern);
+        if (match) {
+            const startTime = match[1];
+            const endTime = match[2];
+            const textContent = match[3].trim();
+            
+            // Конвертируем время в секунды
+            const startSeconds = timeToSeconds(startTime);
+            const endSeconds = timeToSeconds(endTime);
+            
+            segments.push({
+                index: segments.length,
+                start: startTime,
+                end: endTime,
+                startSeconds: startSeconds,
+                endSeconds: endSeconds,
+                text: textContent,
+                element: null
+            });
+        } else if (line.trim()) {
+            // Текст без таймкода
+            segments.push({
+                index: segments.length,
+                start: null,
+                end: null,
+                startSeconds: null,
+                endSeconds: null,
+                text: line.trim(),
+                element: null
+            });
+        }
+    });
+    
+    return segments;
+}
+
+// Конвертация времени в секунды
+function timeToSeconds(timeStr) {
+    if (!timeStr) return 0;
+    
+    // Убираем миллисекунды если есть
+    const timeWithoutMs = timeStr.split('.')[0];
+    const parts = timeWithoutMs.split(':');
+    
+    if (parts.length !== 3) return 0;
+    
+    const hours = parseInt(parts[0]) || 0;
+    const minutes = parseInt(parts[1]) || 0;
+    const seconds = parseInt(parts[2]) || 0;
+    
+    return hours * 3600 + minutes * 60 + seconds;
+}
+
+// Форматирование секунд в MM:SS
+function formatTime(seconds) {
+    if (isNaN(seconds)) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+// Открытие модального окна просмотра транскрипции
+window.openTranscriptViewModal = async function(fileId, transcriptData) {
+    // Закрываем другие модальные окна
+    closeAIModal();
+    closeFolderModal();
+    closeReviewModal();
+    
+    const modal = document.getElementById('transcriptViewModal');
+    const titleEl = document.getElementById('transcriptViewTitle');
+    const audioEl = document.getElementById('transcriptAudio');
+    const textContainer = document.getElementById('transcriptText');
+    
+    if (!modal || !audioEl || !textContainer) return;
+    
+    transcriptViewFileId = fileId;
+    audioPlayer = audioEl;
+    
+    // Получаем данные транскрипции
+    let transcriptText = '';
+    let filename = 'Транскрипция';
+    
+    if (transcriptData && transcriptData.transcript) {
+        transcriptText = transcriptData.transcript;
+        filename = transcriptData.filename || filename;
+    } else {
+        try {
+            const data = await apiGetTranscript(fileId);
+            transcriptText = data.transcript || '';
+            filename = data.filename || filename;
+        } catch (err) {
+            alert('Ошибка загрузки транскрипции: ' + err.message);
+            return;
+        }
+    }
+    
+    // Устанавливаем заголовок
+    if (titleEl) {
+        titleEl.textContent = filename;
+    }
+    
+    // Парсим сегменты
+    transcriptSegments = parseTranscriptSegments(transcriptText);
+    
+    // Рендерим сегменты
+    renderTranscriptSegments();
+    
+    // Загружаем и применяем закладку, если она есть
+    loadAndApplyBookmark(fileId);
+    
+    // Загружаем аудио
+    const audioUrl = getAudioUrl(fileId);
+    console.log('Loading audio from:', audioUrl);
+    audioEl.src = audioUrl;
+    
+    // Обработка ошибок загрузки аудио
+    audioEl.addEventListener('error', (e) => {
+        console.error('Audio load error:', e);
+        const errorCode = audioEl.error;
+        let errorMsg = 'Ошибка загрузки аудиофайла';
+        
+        if (errorCode) {
+            switch (errorCode.code) {
+                case errorCode.MEDIA_ERR_ABORTED:
+                    errorMsg = 'Загрузка аудио прервана';
+                    break;
+                case errorCode.MEDIA_ERR_NETWORK:
+                    errorMsg = 'Ошибка сети при загрузке аудио';
+                    break;
+                case errorCode.MEDIA_ERR_DECODE:
+                    errorMsg = 'Ошибка декодирования аудио';
+                    break;
+                case errorCode.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                    errorMsg = 'Формат аудио не поддерживается';
+                    break;
+            }
+        }
+        
+        alert(errorMsg + '\n\nПроверьте, что аудиофайл существует и доступен.');
+    });
+    
+    // Инициализируем плеер
+    initAudioPlayer();
+    
+    // Показываем модальное окно
+    modal.style.display = 'flex';
+    
+    // Загружаем метаданные аудио
+    audioEl.addEventListener('loadedmetadata', () => {
+        const totalTimeEl = document.getElementById('totalTime');
+        if (totalTimeEl && audioEl.duration) {
+            totalTimeEl.textContent = formatTime(audioEl.duration);
+        }
+    });
+    
+    // Обработка успешной загрузки
+    audioEl.addEventListener('canplay', () => {
+        console.log('Audio can play');
+    });
+};
+
+window.closeTranscriptViewModal = function() {
+    const modal = document.getElementById('transcriptViewModal');
+    if (modal) {
+        modal.style.display = 'none';
+        
+        // Останавливаем воспроизведение
+        if (audioPlayer) {
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+        }
+        
+        // Сбрасываем состояние
+        transcriptSegments = [];
+        currentSegmentIndex = -1;
+        audioPlayer = null;
+        transcriptViewFileId = null;
+        translationEnabled = false;
+        translationLanguage = 'ru';
+        segmentTranslations = {};
+        
+        // Сбрасываем UI
+        const translationCheckbox = document.getElementById('enableTranslation');
+        const languageSelect = document.getElementById('translationLanguage');
+        if (translationCheckbox) translationCheckbox.checked = false;
+        if (languageSelect) {
+            languageSelect.disabled = true;
+            languageSelect.value = 'ru';
+        }
+    }
+};
+
+// Рендеринг сегментов транскрипции
+function renderTranscriptSegments() {
+    const container = document.getElementById('transcriptText');
+    if (!container) return;
+    
+    // Получаем закладку для текущего файла
+    const bookmarkSegmentIndex = getBookmarkSegmentIndex(transcriptViewFileId);
+    
+    const html = transcriptSegments.map((seg, index) => {
+        const timeDisplay = seg.start && seg.end 
+            ? `<span class="segment-time" data-start="${seg.startSeconds}" data-end="${seg.endSeconds}">[${seg.start} → ${seg.end}]</span>`
+            : '';
+        
+        // Проверяем, есть ли закладка на этом сегменте
+        const isBookmarked = bookmarkSegmentIndex === index;
+        const bookmarkIcon = isBookmarked ? '<span class="bookmark-icon" title="Закладка">🔖</span>' : '';
+        
+        // Получаем перевод, если включен
+        let translationHtml = '';
+        if (translationEnabled && seg.text) {
+            const translation = getSegmentTranslation(index, translationLanguage);
+            if (translation) {
+                translationHtml = `<div class="segment-translation">${escapeHtml(translation)}</div>`;
+            } else {
+                // Показываем индикатор загрузки
+                translationHtml = `<div class="segment-translation loading">Перевод...</div>`;
+                // Запускаем перевод в фоне
+                translateSegment(index, seg.text, translationLanguage);
+            }
+        }
+        
+        return `
+            <div class="transcript-segment ${isBookmarked ? 'has-bookmark' : ''}" 
+                 data-index="${index}" 
+                 data-start="${seg.startSeconds || ''}" 
+                 data-end="${seg.endSeconds || ''}"
+                 onclick="seekToSegment(${index})">
+                ${timeDisplay}
+                ${bookmarkIcon}
+                <div class="segment-content">
+                    <div class="segment-original">${escapeHtml(seg.text)}</div>
+                    ${translationHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+    
+    // Сохраняем ссылки на элементы
+    transcriptSegments.forEach((seg, index) => {
+        const element = container.querySelector(`[data-index="${index}"]`);
+        if (element) {
+            seg.element = element;
+        }
+    });
+    
+    // Обновляем состояние кнопки закладки
+    updateBookmarkButton();
+}
+
+// Получить перевод сегмента из кэша
+function getSegmentTranslation(segmentIndex, language) {
+    if (!segmentTranslations[segmentIndex]) {
+        return null;
+    }
+    return segmentTranslations[segmentIndex][language] || null;
+}
+
+// Перевести сегмент
+async function translateSegment(segmentIndex, text, targetLanguage) {
+    // Проверяем кэш
+    if (segmentTranslations[segmentIndex] && segmentTranslations[segmentIndex][targetLanguage]) {
+        return segmentTranslations[segmentIndex][targetLanguage];
+    }
+    
+    // Если текст пустой или слишком короткий, не переводим
+    if (!text || text.trim().length < 3) {
+        return null;
+    }
+    
+    try {
+        // Используем API для перевода
+        const translated = await translateTextSimple(text, targetLanguage);
+        
+        // Сохраняем в кэш
+        if (!segmentTranslations[segmentIndex]) {
+            segmentTranslations[segmentIndex] = {};
+        }
+        segmentTranslations[segmentIndex][targetLanguage] = translated;
+        
+        // Обновляем отображение этого сегмента
+        updateSegmentTranslation(segmentIndex, translated);
+        
+        return translated;
+    } catch (err) {
+        console.error(`Error translating segment ${segmentIndex}:`, err);
+        // Показываем ошибку с более понятным сообщением
+        const errorMsg = err.message || 'Ошибка перевода';
+        updateSegmentTranslation(segmentIndex, null, true, errorMsg);
+        return null;
+    }
+}
+
+// Пакетный перевод всех сегментов (оптимизация)
+async function translateAllSegments(targetLanguage) {
+    const segmentsToTranslate = transcriptSegments
+        .map((seg, index) => ({ index, text: seg.text }))
+        .filter(item => item.text && item.text.trim().length >= 3)
+        .filter(item => !segmentTranslations[item.index] || !segmentTranslations[item.index][targetLanguage]);
+    
+    if (segmentsToTranslate.length === 0) {
+        return; // Все уже переведены
+    }
+    
+    // Переводим по 2 сегмента за раз (уменьшено для избежания перегрузки)
+    const batchSize = 2;
+    const delayBetweenBatches = 300; // Увеличена задержка между батчами
+    
+    for (let i = 0; i < segmentsToTranslate.length; i += batchSize) {
+        const batch = segmentsToTranslate.slice(i, i + batchSize);
+        
+        // Переводим последовательно внутри батча (не параллельно)
+        for (const item of batch) {
+            await translateSegment(item.index, item.text, targetLanguage);
+            // Небольшая задержка между запросами
+            await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        
+        // Задержка между батчами
+        if (i + batchSize < segmentsToTranslate.length) {
+            await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+        }
+    }
+}
+
+// Простой перевод текста через наш API
+async function translateTextSimple(text, targetLanguage) {
+    if (!text || text.trim().length < 3) {
+        return text;
+    }
+    
+    try {
+        // Используем наш API для перевода
+        const API_BASE_URL = "http://127.0.0.1:8000";
+        
+        // Используем safeFetch если доступен, иначе обычный fetch
+        let response;
+        if (typeof safeFetch !== 'undefined') {
+            response = await safeFetch(`${API_BASE_URL}/ai/translate-segment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    target_language: targetLanguage
+                })
+            });
+        } else {
+            response = await fetch(`${API_BASE_URL}/ai/translate-segment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    target_language: targetLanguage
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(`Translation API error: ${response.status} - ${errorText}`);
+            }
+        }
+        
+        const data = await response.json();
+        return data.translated_text || text;
+    } catch (err) {
+        console.error('Translation error:', err);
+        
+        // Пытаемся извлечь более детальное сообщение об ошибке
+        let errorMessage = 'Не удалось выполнить перевод.';
+        
+        if (err.message) {
+            if (err.message.includes('503') || err.message.includes('googletrans не установлен')) {
+                errorMessage = 'Перевод недоступен: googletrans не установлен на сервере.';
+            } else if (err.message.includes('500') || err.message.includes('лимит')) {
+                errorMessage = 'Ошибка перевода: возможно, превышен лимит запросов. Попробуйте позже.';
+            } else if (err.message.includes('404') || err.message.includes('подключения')) {
+                errorMessage = 'Не удалось подключиться к серверу. Убедитесь, что сервер запущен.';
+            } else {
+                errorMessage = err.message;
+            }
+        }
+        
+        throw new Error(errorMessage);
+    }
+}
+
+// Обновить отображение перевода для сегмента
+function updateSegmentTranslation(segmentIndex, translation, isError = false, errorMsg = null) {
+    const segment = transcriptSegments[segmentIndex];
+    if (!segment || !segment.element) return;
+    
+    const translationDiv = segment.element.querySelector('.segment-translation');
+    if (translationDiv) {
+        if (isError) {
+            translationDiv.className = 'segment-translation error';
+            translationDiv.textContent = errorMsg || 'Ошибка перевода';
+        } else if (translation) {
+            translationDiv.className = 'segment-translation';
+            translationDiv.textContent = translation;
+        }
+    }
+}
+
+// Включить/выключить перевод
+window.toggleTranslation = async function() {
+    const checkbox = document.getElementById('enableTranslation');
+    const languageSelect = document.getElementById('translationLanguage');
+    
+    if (!checkbox || !languageSelect) return;
+    
+    translationEnabled = checkbox.checked;
+    languageSelect.disabled = !translationEnabled;
+    
+    if (translationEnabled) {
+        // Включаем перевод - сначала перерисовываем с индикаторами загрузки
+        renderTranscriptSegments();
+        
+        // Затем переводим все сегменты в фоне
+        translateAllSegments(translationLanguage).then(() => {
+            // После завершения перерисовываем с переводами
+            renderTranscriptSegments();
+        });
+    } else {
+        // Выключаем - просто перерисовываем без переводов
+        renderTranscriptSegments();
+    }
+};
+
+// Изменить язык перевода
+window.changeTranslationLanguage = async function() {
+    const languageSelect = document.getElementById('translationLanguage');
+    if (!languageSelect) return;
+    
+    const newLanguage = languageSelect.value;
+    
+    if (translationEnabled) {
+        translationLanguage = newLanguage;
+        
+        // Показываем индикатор загрузки
+        const container = document.getElementById('transcriptText');
+        if (container) {
+            container.style.opacity = '0.6';
+        }
+        
+        // Переводим все сегменты на новый язык
+        await translateAllSegments(newLanguage);
+        
+        // Перерисовываем с новым языком
+        renderTranscriptSegments();
+        
+        // Убираем индикатор
+        if (container) {
+            container.style.opacity = '1';
+        }
+    }
+};
+
+// Инициализация аудиоплеера
+function initAudioPlayer() {
+    if (!audioPlayer) return;
+    
+    // Обновление прогресса
+    audioPlayer.addEventListener('timeupdate', updateAudioProgress);
+    
+    // Обновление кнопки play/pause
+    audioPlayer.addEventListener('play', () => {
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '⏸️';
+    });
+    
+    audioPlayer.addEventListener('pause', () => {
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '▶️';
+    });
+    
+    // Синхронизация с сегментами
+    audioPlayer.addEventListener('timeupdate', syncTranscriptWithAudio);
+}
+
+// Обновление прогресса аудио
+function updateAudioProgress() {
+    if (!audioPlayer) return;
+    
+    const progressBar = document.getElementById('audioProgress');
+    const currentTimeEl = document.getElementById('currentTime');
+    
+    if (progressBar) {
+        const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+        progressBar.value = progress || 0;
+    }
+    
+    if (currentTimeEl) {
+        currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+    }
+}
+
+// Синхронизация транскрипции с аудио
+function syncTranscriptWithAudio() {
+    if (!audioPlayer || transcriptSegments.length === 0) return;
+    
+    const currentTime = audioPlayer.currentTime;
+    
+    // Находим текущий сегмент
+    let newSegmentIndex = -1;
+    for (let i = 0; i < transcriptSegments.length; i++) {
+        const seg = transcriptSegments[i];
+        if (seg.startSeconds !== null && seg.endSeconds !== null) {
+            if (currentTime >= seg.startSeconds && currentTime <= seg.endSeconds) {
+                newSegmentIndex = i;
+                break;
+            }
+        }
+    }
+    
+    // Обновляем подсветку
+    if (newSegmentIndex !== currentSegmentIndex) {
+        // Убираем подсветку с предыдущего сегмента
+        if (currentSegmentIndex >= 0 && transcriptSegments[currentSegmentIndex]) {
+            const prevSeg = transcriptSegments[currentSegmentIndex];
+            if (prevSeg.element) {
+                prevSeg.element.classList.remove('active');
+            }
+        }
+        
+        // Подсвечиваем новый сегмент
+        if (newSegmentIndex >= 0 && transcriptSegments[newSegmentIndex]) {
+            const newSeg = transcriptSegments[newSegmentIndex];
+            if (newSeg.element) {
+                newSeg.element.classList.add('active');
+                
+                // Прокручиваем к активному сегменту
+                newSeg.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        currentSegmentIndex = newSegmentIndex;
+        
+        // Обновляем кнопку закладки при изменении текущего сегмента
+        updateBookmarkButton();
+    }
+}
+
+// Управление воспроизведением
+window.togglePlayPause = function() {
+    if (!audioPlayer) return;
+    
+    if (audioPlayer.paused) {
+        audioPlayer.play();
+    } else {
+        audioPlayer.pause();
+    }
+};
+
+// Переход к сегменту по клику
+window.seekToSegment = function(index) {
+    if (!audioPlayer || !transcriptSegments[index]) return;
+    
+    const seg = transcriptSegments[index];
+    if (seg.startSeconds !== null) {
+        audioPlayer.currentTime = seg.startSeconds;
+        
+        // Обновляем текущий индекс сегмента
+        if (currentSegmentIndex !== index) {
+            // Убираем подсветку с предыдущего сегмента
+            if (currentSegmentIndex >= 0 && transcriptSegments[currentSegmentIndex]) {
+                const prevSeg = transcriptSegments[currentSegmentIndex];
+                if (prevSeg.element) {
+                    prevSeg.element.classList.remove('active');
+                }
+            }
+            
+            // Подсвечиваем новый сегмент
+            if (seg.element) {
+                seg.element.classList.add('active');
+            }
+            
+            currentSegmentIndex = index;
+            updateBookmarkButton();
+        }
+        
+        // Если аудио на паузе, запускаем
+        if (audioPlayer.paused) {
+            audioPlayer.play();
+        }
+    }
+};
+
+// Перемотка аудио
+window.seekAudio = function(value) {
+    if (!audioPlayer) return;
+    const time = (value / 100) * audioPlayer.duration;
+    audioPlayer.currentTime = time;
+};
+
+// Изменение скорости воспроизведения
+window.changePlaybackSpeed = function(speed) {
+    if (!audioPlayer) return;
+    audioPlayer.playbackRate = parseFloat(speed);
+};
+
+// Горячие клавиши для аудиоплеера
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('transcriptViewModal');
+    if (!modal || modal.style.display !== 'flex') return;
+    
+    // Space - пауза/воспроизведение
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        togglePlayPause();
+    }
+    
+    // Стрелки влево/вправо - перемотка на 5 секунд
+    if (e.code === 'ArrowLeft' && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        if (audioPlayer) {
+            audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 5);
+        }
+    }
+    
+    if (e.code === 'ArrowRight' && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        if (audioPlayer) {
+            audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 5);
+        }
+    }
+    
+    // Стрелки вверх/вниз - изменение скорости
+    if (e.code === 'ArrowUp' && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        const speedSelect = document.getElementById('playbackSpeed');
+        if (speedSelect) {
+            const currentSpeed = parseFloat(speedSelect.value);
+            const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+            const currentIndex = speeds.indexOf(currentSpeed);
+            if (currentIndex < speeds.length - 1) {
+                speedSelect.value = speeds[currentIndex + 1];
+                changePlaybackSpeed(speeds[currentIndex + 1]);
+            }
+        }
+    }
+    
+    if (e.code === 'ArrowDown' && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        const speedSelect = document.getElementById('playbackSpeed');
+        if (speedSelect) {
+            const currentSpeed = parseFloat(speedSelect.value);
+            const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+            const currentIndex = speeds.indexOf(currentSpeed);
+            if (currentIndex > 0) {
+                speedSelect.value = speeds[currentIndex - 1];
+                changePlaybackSpeed(speeds[currentIndex - 1]);
+            }
+        }
+    }
+    
+    // Escape - закрыть модальное окно
+    if (e.code === 'Escape') {
+        closeTranscriptViewModal();
+    }
+    
+    // B - установить/удалить закладку
+    if (e.code === 'KeyB' && !e.shiftKey && !e.ctrlKey && !e.altKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        toggleBookmark();
+    }
+});
+
+// ===== ФУНКЦИИ ДЛЯ РАБОТЫ С ЗАКЛАДКАМИ =====
+
+// Получить ключ для хранения закладки в localStorage
+function getBookmarkKey(fileId) {
+    return `transcript_bookmark_${fileId}`;
+}
+
+// Сохранить закладку
+function saveBookmark(fileId, segmentIndex) {
+    if (!fileId || segmentIndex === undefined || segmentIndex < 0) return;
+    
+    const key = getBookmarkKey(fileId);
+    localStorage.setItem(key, JSON.stringify({
+        segmentIndex: segmentIndex,
+        timestamp: Date.now()
+    }));
+    
+    console.log(`Bookmark saved for file ${fileId} at segment ${segmentIndex}`);
+}
+
+// Получить индекс сегмента закладки
+function getBookmarkSegmentIndex(fileId) {
+    if (!fileId) return -1;
+    
+    const key = getBookmarkKey(fileId);
+    const bookmarkData = localStorage.getItem(key);
+    
+    if (!bookmarkData) return -1;
+    
+    try {
+        const bookmark = JSON.parse(bookmarkData);
+        return bookmark.segmentIndex !== undefined ? bookmark.segmentIndex : -1;
+    } catch (e) {
+        console.error('Error parsing bookmark:', e);
+        return -1;
+    }
+}
+
+// Удалить закладку
+function removeBookmark(fileId) {
+    if (!fileId) return;
+    
+    const key = getBookmarkKey(fileId);
+    localStorage.removeItem(key);
+    
+    console.log(`Bookmark removed for file ${fileId}`);
+}
+
+// Переключить закладку (установить/удалить)
+window.toggleBookmark = function() {
+    if (!transcriptViewFileId || currentSegmentIndex < 0) {
+        alert('Сначала выберите сегмент транскрипции');
+        return;
+    }
+    
+    const currentBookmarkIndex = getBookmarkSegmentIndex(transcriptViewFileId);
+    
+    if (currentBookmarkIndex === currentSegmentIndex) {
+        // Удаляем закладку
+        removeBookmark(transcriptViewFileId);
+    } else {
+        // Устанавливаем закладку
+        saveBookmark(transcriptViewFileId, currentSegmentIndex);
+    }
+    
+    // Обновляем отображение
+    renderTranscriptSegments();
+    updateBookmarkButton();
+};
+
+// Перейти к закладке
+window.jumpToBookmark = function() {
+    if (!transcriptViewFileId) return;
+    
+    const bookmarkIndex = getBookmarkSegmentIndex(transcriptViewFileId);
+    
+    if (bookmarkIndex < 0 || bookmarkIndex >= transcriptSegments.length) {
+        alert('Закладка не найдена или недействительна');
+        return;
+    }
+    
+    // Переходим к сегменту с закладкой
+    seekToSegment(bookmarkIndex);
+    
+    // Прокручиваем к закладке
+    scrollToSegment(bookmarkIndex);
+};
+
+// Обновить состояние кнопки закладки
+function updateBookmarkButton() {
+    const bookmarkBtn = document.getElementById('bookmarkBtn');
+    const bookmarkIcon = document.getElementById('bookmarkIcon');
+    const bookmarkText = document.getElementById('bookmarkText');
+    const jumpBtn = document.getElementById('jumpToBookmarkBtn');
+    
+    if (!bookmarkBtn || !transcriptViewFileId) return;
+    
+    const bookmarkIndex = getBookmarkSegmentIndex(transcriptViewFileId);
+    const hasBookmark = bookmarkIndex >= 0;
+    const isCurrentBookmarked = bookmarkIndex === currentSegmentIndex;
+    
+    // Обновляем кнопку закладки
+    if (isCurrentBookmarked) {
+        bookmarkBtn.classList.add('active');
+        if (bookmarkIcon) bookmarkIcon.textContent = '🔖';
+        if (bookmarkText) bookmarkText.textContent = 'Убрать закладку';
+        bookmarkBtn.title = 'Удалить закладку с текущего сегмента';
+    } else {
+        bookmarkBtn.classList.remove('active');
+        if (bookmarkIcon) bookmarkIcon.textContent = '🔖';
+        if (bookmarkText) bookmarkText.textContent = 'Закладка';
+        bookmarkBtn.title = 'Установить закладку на текущий сегмент';
+    }
+    
+    // Показываем/скрываем кнопку перехода к закладке
+    if (jumpBtn) {
+        if (hasBookmark && !isCurrentBookmarked) {
+            jumpBtn.style.display = 'inline-flex';
+        } else {
+            jumpBtn.style.display = 'none';
+        }
+    }
+}
+
+// Загрузить и применить закладку при открытии модального окна
+function loadAndApplyBookmark(fileId) {
+    if (!fileId) return;
+    
+    const bookmarkIndex = getBookmarkSegmentIndex(fileId);
+    
+    if (bookmarkIndex >= 0 && bookmarkIndex < transcriptSegments.length) {
+        // Используем setTimeout, чтобы дать время на рендеринг
+        setTimeout(() => {
+            scrollToSegment(bookmarkIndex);
+            
+            // Устанавливаем время аудио на начало закладки
+            const segment = transcriptSegments[bookmarkIndex];
+            if (segment && segment.startSeconds !== null && audioPlayer) {
+                audioPlayer.currentTime = segment.startSeconds;
+            }
+        }, 300);
+    }
+}
+
+// Прокрутить к сегменту
+function scrollToSegment(segmentIndex) {
+    if (segmentIndex < 0 || segmentIndex >= transcriptSegments.length) return;
+    
+    const segment = transcriptSegments[segmentIndex];
+    if (!segment || !segment.element) return;
+    
+    const container = document.getElementById('transcriptTextContainer');
+    if (!container) return;
+    
+    // Прокручиваем к элементу с небольшим отступом сверху
+    const elementTop = segment.element.offsetTop;
+    const containerTop = container.scrollTop;
+    const containerHeight = container.clientHeight;
+    const elementHeight = segment.element.offsetHeight;
+    
+    // Центрируем элемент в контейнере
+    const scrollTo = elementTop - (containerHeight / 2) + (elementHeight / 2);
+    
+    container.scrollTo({
+        top: Math.max(0, scrollTo),
+        behavior: 'smooth'
+    });
+}

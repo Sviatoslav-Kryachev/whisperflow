@@ -498,6 +498,12 @@ function setLanguage(lang) {
         localStorage.setItem('whisperflow_lang', lang);
         updatePageTranslations();
         updateLanguageSelector();
+        
+        // Закрываем дропдаун после выбора языка
+        const dropdown = document.getElementById('languageDropdown');
+        if (dropdown) {
+            dropdown.classList.remove('show');
+        }
     }
 }
 
@@ -601,4 +607,3 @@ function closeMobileSidebar() {
 document.addEventListener('DOMContentLoaded', function() {
     updateLanguageSelector();
 });
-

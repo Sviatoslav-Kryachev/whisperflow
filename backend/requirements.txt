@@ -5,6 +5,12 @@ sqlalchemy
 passlib[bcrypt]
 python-jose
 openai-whisper
-torch
+torch==2.3.0
 python-docx
 openpyxl
+transformers
+googletrans==4.0.0rc1
+sentencepiece
+protobuf
+openai
+language-tool-python

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhisperFlow - Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="dashboard-page">
@@ -24,6 +26,10 @@
                         <span class="sidebar-icon">📁</span>
                         <span data-i18n="sidebar.allFiles">Все файлы</span>
                     </div>
+                    <a href="conversation.html" class="sidebar-item" style="text-decoration: none; color: inherit;" target="_blank">
+                        <span class="sidebar-icon">💬</span>
+                        <span>Языковой тренажёр</span>
+                    </a>
                 </div>
             </div>
             
@@ -482,6 +488,30 @@
         </div>
     </div>
 
+    <!-- Modal: Подтверждение дубликата -->
+    <div id="duplicateModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeDuplicateModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">⚠️</div>
+                <h2>Файл с похожим названием уже существует</h2>
+                <button class="modal-close" onclick="closeDuplicateModal()">×</button>
+            </div>
+            <p class="modal-description">
+                Файл <strong id="duplicateFileName"></strong> похож на уже загруженные файлы:
+            </p>
+            <div class="modal-body">
+                <div id="duplicateFilesList" class="duplicate-files-list">
+                    <!-- Список похожих файлов будет вставлен здесь -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-modal" onclick="closeDuplicateModal()">Отменить</button>
+                <button class="btn btn-primary btn-modal" onclick="confirmDuplicateUpload()">Загрузить всё равно</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Переместить в папку -->
     <div id="moveToFolderModal" class="modal" style="display: none;">
         <div class="modal-backdrop" onclick="closeMoveToFolderModal()"></div>
@@ -552,6 +582,144 @@
                     </div>
                     <div class="export-format-name" data-i18n="export.txt">В формате TXT</div>
                     <div class="export-format-desc" data-i18n="export.txtDesc">Блокнот и Notepad++</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: AI-анализ -->
+    <div id="aiModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeAIModal()"></div>
+        <div class="modal-content modal-ai" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <div class="modal-icon">🤖</div>
+                <h2>AI-анализ транскрипции</h2>
+                <button class="modal-close" onclick="closeAIModal()">×</button>
+            </div>
+            <p class="modal-description" id="aiFileName">Транскрипция</p>
+            
+            <div id="aiLoading" style="display: none; text-align: center; padding: 20px;">
+                <div class="loading-spinner"></div>
+                <p>Загрузка данных...</p>
+            </div>
+            
+            <div id="aiError" style="display: none; padding: 20px; color: #ef4444; text-align: center;"></div>
+            
+            <div id="aiContent" style="display: none;">
+                <div class="ai-actions-bar">
+                    <button class="btn btn-primary btn-small" onclick="analyzeAllAI()">🚀 Выполнить все анализы</button>
+                    <button class="btn btn-secondary btn-small" onclick="generateSummary()">📝 Резюме</button>
+                    <button class="btn btn-secondary btn-small" onclick="extractKeywords()">🔑 Ключевые слова</button>
+                    <button class="btn btn-secondary btn-small" onclick="analyzeSentiment()">😊 Тональность</button>
+                    <button class="btn btn-secondary btn-small" onclick="classifyTranscript()">📂 Классификация</button>
+                    <button class="btn btn-secondary btn-small" onclick="translateTranscript()">🌐 Перевод</button>
+                </div>
+                
+                <div class="ai-sections">
+                    <div class="ai-section">
+                        <h3 class="ai-section-title">📝 Резюме</h3>
+                        <div id="aiSummary" class="ai-section-body"></div>
+                    </div>
+                    
+                    <div class="ai-section">
+                        <h3 class="ai-section-title">🔑 Ключевые слова</h3>
+                        <div id="aiKeywords" class="ai-section-body"></div>
+                    </div>
+                    
+                    <div class="ai-section">
+                        <h3 class="ai-section-title">😊 Тональность</h3>
+                        <div id="aiSentiment" class="ai-section-body"></div>
+                    </div>
+                    
+                    <div class="ai-section">
+                        <h3 class="ai-section-title">📂 Категория</h3>
+                        <div id="aiCategory" class="ai-section-body"></div>
+                    </div>
+                    
+                    <div class="ai-section">
+                        <h3 class="ai-section-title">🌐 Переводы</h3>
+                        <div id="aiTranslations" class="ai-section-body"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Просмотр транскрипции с аудиоплеером -->
+    <div id="transcriptViewModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeTranscriptViewModal()"></div>
+        <div class="modal-content modal-transcript-view" style="max-width: 1000px; max-height: 90vh;">
+            <div class="modal-header">
+                <div class="modal-icon">🎧</div>
+                <h2 id="transcriptViewTitle">Просмотр транскрипции</h2>
+                <button class="modal-close" onclick="closeTranscriptViewModal()">×</button>
+            </div>
+            
+            <div class="transcript-view-container">
+                <!-- Аудиоплеер -->
+                <div class="audio-player-section">
+                    <audio id="transcriptAudio" preload="metadata"></audio>
+                    <div class="audio-controls">
+                        <button class="audio-btn" id="playPauseBtn" onclick="togglePlayPause()">▶️</button>
+                        <div class="audio-progress-container">
+                            <input type="range" id="audioProgress" min="0" max="100" value="0" step="0.1" oninput="seekAudio(this.value)">
+                            <div class="audio-time">
+                                <span id="currentTime">00:00</span> / <span id="totalTime">00:00</span>
+                            </div>
+                        </div>
+                        <div class="audio-speed-control">
+                            <label>Скорость:</label>
+                            <select id="playbackSpeed" onchange="changePlaybackSpeed(this.value)">
+                                <option value="0.5">0.5x</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="translation-controls">
+                        <label class="translation-toggle">
+                            <input type="checkbox" id="enableTranslation" onchange="toggleTranslation()">
+                            <span>Показать перевод</span>
+                        </label>
+                        <select id="translationLanguage" onchange="changeTranslationLanguage()" disabled>
+                            <option value="ru">🇷🇺 Русский</option>
+                            <option value="en">🇬🇧 English</option>
+                            <option value="uk">🇺🇦 Українська</option>
+                            <option value="pl">🇵🇱 Polski</option>
+                            <option value="cs">🇨🇿 Čeština</option>
+                            <option value="fr">🇫🇷 Français</option>
+                            <option value="es">🇪🇸 Español</option>
+                            <option value="it">🇮🇹 Italiano</option>
+                            <option value="pt">🇵🇹 Português</option>
+                            <option value="tr">🇹🇷 Türkçe</option>
+                            <option value="zh">🇨🇳 中文</option>
+                            <option value="ja">🇯🇵 日本語</option>
+                            <option value="ko">🇰🇷 한국어</option>
+                        </select>
+                    </div>
+                    <div class="bookmark-controls">
+                        <button class="btn-bookmark" id="bookmarkBtn" onclick="toggleBookmark()" title="Установить закладку на текущий сегмент">
+                            <span id="bookmarkIcon">🔖</span>
+                            <span id="bookmarkText">Закладка</span>
+                        </button>
+                        <button class="btn-bookmark-jump" id="jumpToBookmarkBtn" onclick="jumpToBookmark()" title="Перейти к закладке" style="display: none;">
+                            <span>📌</span>
+                            <span>К закладке</span>
+                        </button>
+                    </div>
+                    <div class="audio-shortcuts">
+                        <small>Горячие клавиши: Space (пауза), ← → (назад/вперёд 5с), ↑ ↓ (скорость), B (закладка)</small>
+                    </div>
+                </div>
+                
+                <!-- Транскрипция с подсветкой -->
+                <div class="transcript-text-container" id="transcriptTextContainer">
+                    <div class="transcript-text" id="transcriptText">
+                        <!-- Сегменты транскрипции будут вставлены здесь -->
+                    </div>
                 </div>
             </div>
         </div>

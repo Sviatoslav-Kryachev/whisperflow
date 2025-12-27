@@ -19,11 +19,20 @@ async function safeFetch(url, options = {}) {
         return response;
     } catch (error) {
         // Обработка сетевых ошибок (CORS, нет подключения и т.д.)
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-            throw new Error("Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000");
+        if (error instanceof TypeError) {
+            const errorMsg = error.message.toLowerCase();
+            if (errorMsg.includes('fetch') || errorMsg.includes('network') || errorMsg.includes('failed')) {
+                const serverUrl = API_BASE;
+                throw new Error(`Ошибка подключения к серверу. Убедитесь, что сервер запущен на ${serverUrl}\n\nПроверьте:\n1. Запущен ли сервер (uvicorn app.main:app --reload)\n2. Правильный ли порт (8000)\n3. Нет ли блокировки файрволом`);
+            }
         }
         throw error;
     }
+}
+
+async function apiCheckDuplicate(filename) {
+    const response = await safeFetch(`${API_BASE}/upload/check-duplicate?filename=${encodeURIComponent(filename)}`);
+    return await response.json();
 }
 
 async function apiUploadAudio(file, model, language = 'auto') {
@@ -179,4 +188,124 @@ async function apiExportTranscript(fileId, format) {
     window.URL.revokeObjectURL(downloadUrl);
     
     return true;
+}
+
+// === AI API ===
+
+async function apiGenerateSummary(fileId, maxLength = 150, minLength = 30) {
+    const response = await safeFetch(`${API_BASE}/ai/summary/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max_length: maxLength, min_length: minLength })
+    });
+    return await response.json();
+}
+
+async function apiExtractKeywords(fileId, numKeywords = 10) {
+    const response = await safeFetch(`${API_BASE}/ai/keywords/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ num_keywords: numKeywords })
+    });
+    return await response.json();
+}
+
+async function apiAnalyzeSentiment(fileId) {
+    const response = await safeFetch(`${API_BASE}/ai/sentiment/${fileId}`, {
+        method: "POST"
+    });
+    return await response.json();
+}
+
+async function apiClassifyTranscript(fileId, categories = null) {
+    const body = categories ? { categories } : {};
+    const response = await safeFetch(`${API_BASE}/ai/classify/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return await response.json();
+}
+
+async function apiTranslateTranscript(fileId, targetLanguage, sourceLanguage = null) {
+    const body = { target_language: targetLanguage };
+    if (sourceLanguage) {
+        body.source_language = sourceLanguage;
+    }
+    const response = await safeFetch(`${API_BASE}/ai/translate/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return await response.json();
+}
+
+async function apiAnalyzeAll(fileId) {
+    const response = await safeFetch(`${API_BASE}/ai/analyze-all/${fileId}`, {
+        method: "POST"
+    });
+    return await response.json();
+}
+
+async function apiGetAIData(fileId) {
+    const response = await safeFetch(`${API_BASE}/ai/data/${fileId}`);
+    return await response.json();
+}
+
+async function apiGetSupportedLanguages() {
+    const response = await safeFetch(`${API_BASE}/ai/languages`);
+    return await response.json();
+}
+
+// === Audio Player API ===
+
+window.getAudioUrl = function(fileId) {
+    return `${API_BASE}/audio/${fileId}`;
+};
+
+// === Conversation API ===
+
+async function apiStartConversation(language, level, topic = null) {
+    const response = await safeFetch(`${API_BASE}/conversation/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language, level, topic })
+    });
+    return await response.json();
+}
+
+async function apiSendMessage(conversationId, text, audioUrl = null) {
+    const response = await safeFetch(`${API_BASE}/conversation/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: conversationId, text, audio_url: audioUrl })
+    });
+    return await response.json();
+}
+
+async function apiGetConversationHistory(conversationId) {
+    const response = await safeFetch(`${API_BASE}/conversation/history/${conversationId}`);
+    return await response.json();
+}
+
+async function apiListConversations(limit = 20, offset = 0) {
+    const response = await safeFetch(`${API_BASE}/conversation/list?limit=${limit}&offset=${offset}`);
+    return await response.json();
+}
+
+async function apiGetConversationStats(conversationId) {
+    const response = await safeFetch(`${API_BASE}/conversation/stats/${conversationId}`);
+    return await response.json();
+}
+
+async function apiGetConversationTopics(language) {
+    const response = await safeFetch(`${API_BASE}/conversation/topics/${language}`);
+    return await response.json();
+}
+
+async function apiDeleteConversation(conversationId) {
+    const response = await safeFetch(`${API_BASE}/conversation/${conversationId}`, {
+        method: "DELETE"
+    });
+    return await response.json();
 }

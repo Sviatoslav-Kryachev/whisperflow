@@ -1,12 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from .routes import upload, auth, transcripts, folders, export
+from .routes import upload, auth, transcripts, folders, export, ai, conversation
 from .database import Base, engine, SessionLocal
 from .config import AUDIO_DIR, TEXT_DIR
 from . import models  # импортируем модели для создания таблиц
-from .models import Transcript
+from .models import Transcript, TranscriptAI
 import logging
 
 # Настройка логирования
@@ -35,8 +35,9 @@ app = FastAPI(title="WhisperFlow")
 
 
 @app.on_event("startup")
-async def reset_stuck_transcripts():
-    """При старте сервера сбрасываем зависшие транскрипции"""
+async def startup_events():
+    """Все события при старте сервера"""
+    # Сбрасываем зависшие транскрипции
     db = SessionLocal()
     try:
         stuck = db.query(Transcript).filter(
@@ -57,6 +58,60 @@ async def reset_stuck_transcripts():
         logger.error(f"Error resetting stuck transcripts: {e}")
     finally:
         db.close()
+    
+    # Предзагрузка AI моделей в фоне
+    import asyncio
+    from .ai_service import _get_summarization_model, _get_sentiment_model, GOOGLETRANS_AVAILABLE
+    
+    # Проверяем доступность googletrans
+    if not GOOGLETRANS_AVAILABLE:
+        logger.warning("⚠️  googletrans не установлен. Перевод будет недоступен.")
+        logger.warning("   Установите: pip install googletrans==4.0.0rc1")
+    else:
+        logger.info("✓ googletrans доступен для переводов")
+    
+    async def load_models_async():
+        """Загружаем модели асинхронно в фоне"""
+        try:
+            logger.info("Starting background preload of AI models...")
+            
+            # Загружаем модели в отдельном потоке, чтобы не блокировать старт сервера
+            import threading
+            
+            def load_summarization():
+                try:
+                    logger.info("Preloading summarization model...")
+                    model = _get_summarization_model()
+                    if model:
+                        logger.info("Summarization model loaded successfully")
+                    else:
+                        logger.info("Summarization model not available (will use fallback method)")
+                except Exception as e:
+                    logger.info(f"Summarization model not available: {e}")
+            
+            def load_sentiment():
+                try:
+                    logger.info("Preloading sentiment model...")
+                    _get_sentiment_model()
+                    logger.info("Sentiment model loaded successfully")
+                except Exception as e:
+                    logger.warning(f"Could not preload sentiment model: {e}")
+            
+            # Запускаем загрузку в отдельных потоках
+            thread1 = threading.Thread(target=load_summarization, daemon=True)
+            thread2 = threading.Thread(target=load_sentiment, daemon=True)
+            
+            thread1.start()
+            thread2.start()
+            
+            # Не ждем завершения - модели загрузятся в фоне
+            logger.info("AI models preloading started in background")
+            
+        except Exception as e:
+            logger.error(f"Error preloading AI models: {e}")
+    
+    # Запускаем предзагрузку в фоне
+    asyncio.create_task(load_models_async())
 
 
 # CORS для фронтенда
@@ -73,6 +128,8 @@ app.include_router(auth.router)
 app.include_router(transcripts.router)
 app.include_router(folders.router)
 app.include_router(export.router)
+app.include_router(ai.router)
+app.include_router(conversation.router)
 
 # Раздаём статические файлы фронтенда (CSS, JS, компоненты)
 if FRONTEND_DIR.exists():
@@ -106,6 +163,32 @@ if FRONTEND_DIR.exists():
     async def dashboard_page():
         from fastapi.responses import FileResponse
         return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
+    
+    @app.get("/conversation.html")
+    async def conversation_page():
+        from fastapi.responses import FileResponse
+        return FileResponse(str(FRONTEND_DIR / "conversation.html"))
+    
+    # Раздаём favicon
+    @app.get("/favicon.svg")
+    async def favicon_svg():
+        from fastapi.responses import FileResponse
+        favicon_path = FRONTEND_DIR / "favicon.svg"
+        if favicon_path.exists():
+            return FileResponse(str(favicon_path), media_type="image/svg+xml")
+        raise HTTPException(status_code=404)
+    
+    @app.get("/favicon.ico")
+    async def favicon_ico():
+        from fastapi.responses import FileResponse
+        favicon_path = FRONTEND_DIR / "favicon.ico"
+        if favicon_path.exists():
+            return FileResponse(str(favicon_path), media_type="image/x-icon")
+        # Если .ico нет, возвращаем SVG
+        svg_path = FRONTEND_DIR / "favicon.svg"
+        if svg_path.exists():
+            return FileResponse(str(svg_path), media_type="image/svg+xml")
+        raise HTTPException(status_code=404)
 else:
     # Если фронтенд не найден, возвращаем JSON
     @app.get("/")

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhisperFlow - Языковой тренажёр</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/conversation.css">
+</head>
+<body class="conversation-page">
+    <!-- Header -->
+    <div id="header"></div>
+
+    <!-- Main Container -->
+    <div class="conversation-container">
+        <!-- Settings Panel (слева или сверху на мобильных) -->
+        <div class="conversation-settings" id="settingsPanel">
+            <div class="settings-header">
+                <h2>Настройки</h2>
+                <button class="settings-close" onclick="toggleSettings()">×</button>
+            </div>
+            
+            <div class="settings-body">
+                <div class="setting-group">
+                    <label>Язык обучения</label>
+                    <select id="languageSelect" onchange="updateLanguage()">
+                        <option value="de">Немецкий</option>
+                        <option value="en">Английский</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Уровень</label>
+                    <select id="levelSelect" onchange="updateLevel()">
+                        <option value="A1">A1 - Начинающий</option>
+                        <option value="A2">A2 - Базовый</option>
+                        <option value="B1" selected>B1 - Средний</option>
+                        <option value="B2">B2 - Продвинутый</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Тема диалога (опционально)</label>
+                    <select id="topicSelect" onchange="updateTopic()">
+                        <option value="">Без темы</option>
+                        <!-- Темы загрузятся динамически -->
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <button class="btn btn-primary" onclick="startNewConversation()">Начать новый диалог</button>
+                </div>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="settings-stats" id="statsPanel">
+                <h3>Статистика</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Сообщений:</span>
+                    <span class="stat-value" id="statMessages">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Исправлений:</span>
+                    <span class="stat-value" id="statCorrections">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Время:</span>
+                    <span class="stat-value" id="statTime">0 мин</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="conversation-chat">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="chat-header-left">
+                    <button class="btn-icon" onclick="toggleSettings()" title="Настройки">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                        </svg>
+                    </button>
+                    <div class="chat-title">
+                        <h2 id="chatTitle">Языковой тренажёр</h2>
+                        <span class="chat-subtitle" id="chatSubtitle">Выберите язык и уровень</span>
+                    </div>
+                </div>
+                <div class="chat-header-right">
+                    <button class="btn-icon" onclick="showConversationHistory()" title="История диалогов">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3h18v18H3zM7 7h10M7 12h10M7 17h10"></path>
+                        </svg>
+                    </button>
+                    <a href="dashboard.html" class="btn-icon" title="Вернуться в дашборд">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="chat-messages" id="messagesContainer">
+                <div class="welcome-message" id="welcomeMessage">
+                    <div class="welcome-icon">💬</div>
+                    <h3>Добро пожаловать в языковой тренажёр!</h3>
+                    <p>Настройте параметры и начните диалог с AI-тренером.</p>
+                    <p>Вы можете говорить в микрофон или вводить текст.</p>
+                </div>
+                <!-- Сообщения будут добавлены динамически -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <button class="btn-record" id="recordBtn" onclick="toggleRecording()" title="Говорить">
+                        <svg id="recordIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        <span id="recordText">Говорить</span>
+                    </button>
+                    
+                    <div class="recording-indicator" id="recordingIndicator" style="display: none;">
+                        <div class="recording-dot"></div>
+                        <span>Запись...</span>
+                    </div>
+                    
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Введите сообщение или нажмите кнопку микрофона..."
+                        onkeypress="handleInputKeyPress(event)"
+                    >
+                    
+                    <button class="btn-send" id="sendBtn" onclick="sendMessage()" title="Отправить">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="input-hints">
+                    <small>💡 Используйте микрофон для голосового ввода или введите текст вручную</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: История диалогов -->
+    <div id="historyModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeHistoryModal()"></div>
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh;">
+            <div class="modal-header">
+                <div class="modal-icon">📜</div>
+                <h2>История диалогов</h2>
+                <button class="modal-close" onclick="closeHistoryModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="historyList" class="history-list">
+                    <!-- История загрузится динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/speech-recognition.js"></script>
+    <script src="js/conversation.js"></script>
+</body>
+</html>
+
+

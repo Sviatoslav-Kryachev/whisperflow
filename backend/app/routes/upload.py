@@ -1,13 +1,17 @@
-from fastapi import APIRouter, UploadFile, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, Form, HTTPException, BackgroundTasks, Query
+from fastapi.responses import FileResponse
 from ..config import AUDIO_DIR, TEXT_DIR
 from ..models import Transcript
 from ..database import SessionLocal
 from ..whisper_service import transcribe
 from pathlib import Path
 from datetime import datetime
+from typing import List, Dict
+from pydantic import BaseModel
 import uuid
 import tempfile
 import logging
+from difflib import SequenceMatcher
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -60,6 +64,46 @@ def process_transcription_background(file_id: str, temp_path: Path, model: str, 
                 temp_path.unlink()
             except:
                 pass
+        db.close()
+
+
+def similarity(a: str, b: str) -> float:
+    """Вычисляет схожесть двух строк (0.0 - 1.0)"""
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+
+@router.get("/upload/check-duplicate")
+async def check_duplicate(filename: str = Query(..., description="Имя файла для проверки")):
+    """Проверяет наличие файлов с похожим именем"""
+    db = SessionLocal()
+    try:
+        # Получаем все транскрипции
+        all_transcripts = db.query(Transcript).all()
+        
+        # Ищем похожие имена (порог схожести 0.7 = 70%)
+        similar_files = []
+        threshold = 0.7
+        
+        for transcript in all_transcripts:
+            if transcript.filename:
+                similarity_score = similarity(filename, transcript.filename)
+                if similarity_score >= threshold:
+                    similar_files.append({
+                        "file_id": transcript.file_id,
+                        "filename": transcript.filename,
+                        "similarity": round(similarity_score, 2),
+                        "status": transcript.status,
+                        "created_at": transcript.created_at.isoformat() if transcript.created_at else None
+                    })
+        
+        # Сортируем по схожести (от большей к меньшей)
+        similar_files.sort(key=lambda x: x["similarity"], reverse=True)
+        
+        return {
+            "has_duplicates": len(similar_files) > 0,
+            "similar_files": similar_files[:5]  # Возвращаем максимум 5 самых похожих
+        }
+    finally:
         db.close()
 
 
@@ -181,8 +225,119 @@ async def get_status(file_id: str):
     finally:
         db.close()
 
+@router.get("/audio/{file_id}")
+async def get_audio_file(file_id: str):
+    """Получить аудиофайл для воспроизведения"""
+    db = SessionLocal()
+    try:
+        transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Транскрипция не найдена")
+        
+        # Ищем аудиофайл
+        audio_files = list(AUDIO_DIR.glob(f"{file_id}_*"))
+        if not audio_files:
+            logger.warning(f"Audio file not found for file_id: {file_id}, searched in: {AUDIO_DIR}")
+            raise HTTPException(status_code=404, detail="Аудиофайл не найден")
+        
+        audio_path = audio_files[0]
+        
+        # Проверяем, что файл существует
+        if not audio_path.exists():
+            logger.error(f"Audio file path exists but file not found: {audio_path}")
+            raise HTTPException(status_code=404, detail="Аудиофайл не найден")
+        
+        # Определяем MIME тип
+        mime_types = {
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/ogg',
+            '.m4a': 'audio/mp4',
+            '.flac': 'audio/flac',
+            '.webm': 'audio/webm'
+        }
+        
+        mime_type = mime_types.get(audio_path.suffix.lower(), 'audio/mpeg')
+        
+        logger.info(f"Serving audio file: {audio_path}, mime_type: {mime_type}")
+        
+        return FileResponse(
+            path=str(audio_path),
+            media_type=mime_type,
+            filename=audio_path.name,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(audio_path.stat().st_size)
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting audio file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка получения аудиофайла: {str(e)}")
+    finally:
+        db.close()
+
+
 @router.post("/retry/{file_id}")
 async def retry_transcript(file_id: str, background_tasks: BackgroundTasks = None):
+    """Повторить обработку неудачной транскрипции"""
+    db = SessionLocal()
+    try:
+        transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Транскрипция не найдена")
+        
+        # Разрешаем повтор для любого статуса кроме "processing"
+        if transcript.status == "processing":
+            raise HTTPException(status_code=400, detail="Транскрипция уже обрабатывается")
+        
+        # Ищем аудиофайл
+        audio_files = list(AUDIO_DIR.glob(f"{file_id}_*"))
+        if not audio_files:
+            raise HTTPException(status_code=404, detail="Аудиофайл не найден")
+        
+        audio_path = audio_files[0]
+        
+        # Сбрасываем статус на pending
+        transcript.status = "pending"
+        transcript.progress = 10.0
+        transcript.error_message = None
+        transcript.completed_at = None
+        transcript.status_message = "Подготовка..."
+        model = transcript.model
+        db.commit()
+        
+        # Копируем файл во временную директорию
+        ext = audio_path.suffix.lower()
+        temp_path = Path(tempfile.gettempdir()) / f"wf_{uuid.uuid4().hex}{ext}"
+        temp_path.write_bytes(audio_path.read_bytes())
+        
+        # Запускаем обработку в фоне
+        if background_tasks:
+            background_tasks.add_task(process_transcription_background, file_id, temp_path, model)
+        else:
+            import threading
+            thread = threading.Thread(
+                target=process_transcription_background,
+                args=(file_id, temp_path, model)
+            )
+            thread.start()
+        
+        return {
+            "status": "pending",
+            "file_id": file_id,
+            "message": "Обработка перезапущена"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        error_msg = str(e).encode('ascii', 'replace').decode('ascii')
+        raise HTTPException(status_code=500, detail=f"Error: {error_msg}")
+    finally:
+        db.close()
+
     """Повторить обработку неудачной транскрипции"""
     db = SessionLocal()
     try:
