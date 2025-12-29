@@ -22,6 +22,8 @@ class RegisterRequest(BaseModel):
 async def register(credentials: RegisterRequest):
     db: Session = SessionLocal()
     try:
+        logger.info(f"Registration attempt for email: {credentials.email}")
+        
         # Валидация email
         if not credentials.email or not credentials.email.strip():
             raise HTTPException(status_code=400, detail="Email is required")
@@ -30,29 +32,41 @@ async def register(credentials: RegisterRequest):
         if not credentials.password or len(credentials.password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
         
+        logger.info("Email and password validated")
+        
         # Проверяем, существует ли пользователь
         existing_user = db.query(User).filter(User.email == credentials.email.strip().lower()).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="User with this email already exists")
         
+        logger.info("No existing user found, creating new user")
+        
         # Создаём нового пользователя
+        logger.info("Hashing password...")
         hashed_password = hash_password(credentials.password)
+        logger.info("Password hashed successfully")
+        
         new_user = User(email=credentials.email.strip().lower(), password=hashed_password)
         db.add(new_user)
+        logger.info("User added to session, committing...")
         db.commit()
         db.refresh(new_user)
+        logger.info(f"User created successfully with ID: {new_user.id}")
         
         # Создаём токен и возвращаем
         token = create_token({"sub": new_user.email, "user_id": new_user.id})
+        logger.info("Token created successfully")
         
         return {"access_token": token, "token_type": "bearer", "message": "User registered successfully"}
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Registration error: {e}", exc_info=True)
-        # Не раскрываем детали ошибки в production для безопасности
-        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Registration error: {e}\n{error_details}")
+        # Возвращаем более детальную ошибку для отладки
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
     finally:
         db.close()
 
