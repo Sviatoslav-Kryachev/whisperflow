@@ -1,0 +1,4 @@
+# Этот файл нужен для Railway, чтобы определить Python проект
+# Основные зависимости находятся в backend/requirements.txt
+-r backend/requirements.txt
+

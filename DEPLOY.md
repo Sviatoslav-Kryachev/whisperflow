@@ -30,15 +30,16 @@ git push
    - Нажмите "New Project"
    - Выберите "Deploy from GitHub repo"
    - Выберите ваш репозиторий `whisperflow`
-4. **Настройте Root Directory** (ВАЖНО!):
-   - В настройках проекта найдите "Root Directory"
-   - Установите: `backend`
-   - Это нужно, чтобы Railway использовал `backend/Procfile`
-5. **Railway автоматически**:
-   - Найдёт `Procfile` в папке `backend/`
-   - Установит зависимости из `requirements.txt`
+4. **Railway автоматически**:
+   - Определит Python проект (благодаря `requirements.txt` в корне)
+   - Найдёт `Procfile` в корне
+   - Установит зависимости из `backend/requirements.txt`
    - Определит GPU (если доступен)
    - Развернёт проект
+
+**Примечание**: Если Railway всё ещё не определяет проект:
+   - В настройках проекта найдите "Root Directory"
+   - Установите: `.` (корень проекта)
 
 ## Шаг 4: Проверка деплоя
 
@@ -56,13 +57,11 @@ https://whisperflow-production.up.railway.app
 - **Storage**: Папка `storage/` будет создана автоматически
 - **Переменные окружения**: Если нужны секретные ключи, добавьте их в настройках Railway (Settings → Variables)
 
-## Альтернативный вариант (если Root Directory не работает)
+## Структура файлов для Railway
 
-Если Railway не находит Procfile, можно использовать Procfile в корне проекта:
-
-1. Удалите `backend/Procfile`
-2. Используйте `Procfile` в корне (уже создан)
-3. В Railway укажите Root Directory = `.` (корень проекта)
+- `Procfile` в корне - указывает Railway как запускать приложение
+- `requirements.txt` в корне - указывает на `backend/requirements.txt` для определения Python проекта
+- `backend/Procfile` - альтернативный вариант (если указать Root Directory = `backend`)
 
 ## Проверка работы
 
