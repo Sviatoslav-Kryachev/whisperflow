@@ -61,19 +61,30 @@ async def login(credentials: LoginRequest):
     try:
         # Ищем пользователя по email (username) - нормализуем email
         email = credentials.username.strip().lower()
+        logger.info(f"Login attempt for email: {email}")
+        
+        # Проверяем количество пользователей в базе для диагностики
+        total_users = db.query(User).count()
+        logger.info(f"Total users in database: {total_users}")
+        
         user = db.query(User).filter(User.email == email).first()
         
         if not user:
+            logger.warning(f"User not found: {email} (total users in DB: {total_users})")
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        logger.info(f"User found: {user.email} (ID: {user.id})")
         
         # Проверяем пароль
         password_valid = verify_password(credentials.password, user.password)
         
         if not password_valid:
+            logger.warning(f"Invalid password for user: {email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Создаём токен
         token = create_token({"sub": user.email, "user_id": user.id})
+        logger.info(f"Login successful for: {email}")
         
         return {"access_token": token, "token_type": "bearer"}
     except HTTPException:

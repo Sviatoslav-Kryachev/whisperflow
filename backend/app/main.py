@@ -32,8 +32,12 @@ TEXT_DIR.mkdir(parents=True, exist_ok=True)
 # Путь к фронтенду
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
-# создаём таблицы базы данных
-Base.metadata.create_all(bind=engine)
+# создаём таблицы базы данных (если их нет - данные не удаляются)
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables checked/created successfully")
+except Exception as e:
+    logger.error(f"Error creating database tables: {e}", exc_info=True)
 
 app = FastAPI(title="WhisperFlow")
 

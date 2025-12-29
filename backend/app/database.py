@@ -28,5 +28,29 @@ else:
     engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
     logger.info(f"Using SQLite database at {DB_PATH} (local development only)")
 
-SessionLocal = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Проверяем подключение к базе данных при импорте
+def check_database_connection():
+    """Проверяет подключение к базе данных и выводит информацию"""
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            result.fetchone()
+        logger.info("✓ Database connection successful")
+        
+        # Выводим информацию о базе данных
+        if DATABASE_URL:
+            # PostgreSQL
+            db_name = DATABASE_URL.split('/')[-1].split('?')[0]
+            logger.info(f"✓ Connected to PostgreSQL database: {db_name}")
+        else:
+            logger.info(f"✓ Connected to SQLite database")
+            
+    except Exception as e:
+        logger.error(f"✗ Database connection failed: {e}", exc_info=True)
+
+# Проверяем подключение при импорте модуля
+check_database_connection()
