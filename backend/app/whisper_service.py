@@ -104,7 +104,7 @@ def transcribe_with_progress(audio_path: str, model_name: str,
         if progress_callback:
             progress_callback(5.0, "Подготовка...")
         
-        file_size = os.getsize(safe_path)
+        file_size = os.path.getsize(safe_path)
         file_size_mb = file_size / (1024 * 1024)
         
         if progress_callback:
