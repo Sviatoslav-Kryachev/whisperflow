@@ -1,4 +1,17 @@
-# Этот файл нужен для Railway, чтобы определить Python проект
-# Основные зависимости находятся в backend/requirements.txt
--r backend/requirements.txt
-
+fastapi
+uvicorn[standard]
+python-multipart
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+faster-whisper==1.0.2
+torch>=2.1.0
+torchaudio>=2.1.0
+python-docx
+openpyxl
+transformers
+googletrans==4.0.0rc1
+sentencepiece
+protobuf
+openai
+language-tool-python
