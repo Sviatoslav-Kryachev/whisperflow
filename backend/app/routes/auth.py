@@ -85,6 +85,8 @@ async def login(credentials: LoginRequest):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         logger.info(f"User found: {user.email}, verifying password...")
+        logger.info(f"User password hash length: {len(user.password) if user.password else 0}")
+        logger.info(f"User password hash prefix: {user.password[:20] if user.password else 'None'}")
         
         # Проверяем пароль
         password_valid = verify_password(credentials.password, user.password)
@@ -92,6 +94,7 @@ async def login(credentials: LoginRequest):
         
         if not password_valid:
             logger.warning(f"Invalid password for user: {email}")
+            logger.warning(f"Password provided length: {len(credentials.password) if credentials.password else 0}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Создаём токен

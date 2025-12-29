@@ -45,19 +45,30 @@ def verify_password(p, h):
     try:
         # Кодируем пароль в UTF-8
         p_bytes = p.encode('utf-8')
+        logger.debug(f"Password bytes length: {len(p_bytes)}")
         
         # Обрезаем до 72 байт, если пароль длиннее (та же логика, что и в hash_password)
         if len(p_bytes) > 72:
             p_bytes = p_bytes[:72]
+            logger.debug(f"Password truncated to 72 bytes")
         
         # Кодируем хеш в байты
         h_bytes = h.encode('utf-8') if isinstance(h, str) else h
+        logger.debug(f"Hash bytes length: {len(h_bytes)}, Hash prefix: {h_bytes[:10] if len(h_bytes) > 10 else h_bytes}")
         
         # Проверяем пароль через bcrypt
         result = bcrypt.checkpw(p_bytes, h_bytes)
+        if not result:
+            logger.warning(f"Password verification failed. Password length: {len(p)}, Hash prefix: {str(h)[:20] if h else 'None'}")
         return result
+    except ValueError as e:
+        # ValueError может возникнуть, если хеш в неправильном формате
+        logger.error(f"ValueError verifying password (possibly invalid hash format): {e}")
+        logger.error(f"Hash value (first 50 chars): {str(h)[:50] if h else 'None'}")
+        return False
     except Exception as e:
         logger.error(f"Error verifying password: {e}", exc_info=True)
+        logger.error(f"Hash value (first 50 chars): {str(h)[:50] if h else 'None'}")
         return False
 
 def create_token(data: dict):
