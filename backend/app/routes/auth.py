@@ -22,8 +22,6 @@ class RegisterRequest(BaseModel):
 async def register(credentials: RegisterRequest):
     db: Session = SessionLocal()
     try:
-        logger.info(f"Registration attempt for email: {credentials.email}")
-        
         # Валидация email
         if not credentials.email or not credentials.email.strip():
             raise HTTPException(status_code=400, detail="Email is required")
@@ -32,41 +30,28 @@ async def register(credentials: RegisterRequest):
         if not credentials.password or len(credentials.password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
         
-        logger.info("Email and password validated")
-        
         # Проверяем, существует ли пользователь
         existing_user = db.query(User).filter(User.email == credentials.email.strip().lower()).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="User with this email already exists")
         
-        logger.info("No existing user found, creating new user")
-        
         # Создаём нового пользователя
-        logger.info("Hashing password...")
         hashed_password = hash_password(credentials.password)
-        logger.info("Password hashed successfully")
-        
         new_user = User(email=credentials.email.strip().lower(), password=hashed_password)
         db.add(new_user)
-        logger.info("User added to session, committing...")
         db.commit()
         db.refresh(new_user)
-        logger.info(f"User created successfully with ID: {new_user.id}")
         
         # Создаём токен и возвращаем
         token = create_token({"sub": new_user.email, "user_id": new_user.id})
-        logger.info("Token created successfully")
         
         return {"access_token": token, "token_type": "bearer", "message": "User registered successfully"}
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        import traceback
-        error_details = traceback.format_exc()
-        logger.error(f"Registration error: {e}\n{error_details}")
-        # Возвращаем более детальную ошибку для отладки
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        logger.error(f"Registration error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Registration failed")
     finally:
         db.close()
 
@@ -74,32 +59,21 @@ async def register(credentials: RegisterRequest):
 async def login(credentials: LoginRequest):
     db: Session = SessionLocal()
     try:
-        logger.info(f"Login attempt for: {credentials.username}")
-        
         # Ищем пользователя по email (username) - нормализуем email
         email = credentials.username.strip().lower()
         user = db.query(User).filter(User.email == email).first()
         
         if not user:
-            logger.warning(f"User not found: {email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        
-        logger.info(f"User found: {user.email}, verifying password...")
-        logger.info(f"User password hash length: {len(user.password) if user.password else 0}")
-        logger.info(f"User password hash prefix: {user.password[:20] if user.password else 'None'}")
         
         # Проверяем пароль
         password_valid = verify_password(credentials.password, user.password)
-        logger.info(f"Password verification result: {password_valid}")
         
         if not password_valid:
-            logger.warning(f"Invalid password for user: {email}")
-            logger.warning(f"Password provided length: {len(credentials.password) if credentials.password else 0}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Создаём токен
         token = create_token({"sub": user.email, "user_id": user.id})
-        logger.info(f"Login successful for: {email}")
         
         return {"access_token": token, "token_type": "bearer"}
     except HTTPException:

@@ -5,7 +5,6 @@ sqlalchemy
 passlib[bcrypt]
 python-jose[cryptography]
 faster-whisper==1.0.2
-psycopg2-binary==2.9.9
 torch>=2.1.0
 torchaudio>=2.1.0
 python-docx

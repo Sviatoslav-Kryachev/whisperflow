@@ -606,38 +606,6 @@ body.dashboard-page {
     width: auto;
 }
 
-.modal-footer-folder {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-}
-
-.btn-modal-folder {
-    width: 100%;
-    padding: 12px 16px;
-    background: #f3f4f6;
-    color: #374151;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-modal-folder:hover {
-    background: #e5e7eb;
-    border-color: #d1d5db;
-}
-
-.btn-modal-folder .btn-icon {
-    font-size: 16px;
-}
-
 /* Duplicate files list in modal */
 .duplicate-files-list {
     max-height: 300px;
@@ -3813,38 +3781,6 @@ body.dashboard-page {
 
 .folder-select-empty button {
     width: auto;
-}
-
-.modal-footer-folder {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-}
-
-.btn-modal-folder {
-    width: 100%;
-    padding: 12px 16px;
-    background: #f3f4f6;
-    color: #374151;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-modal-folder:hover {
-    background: #e5e7eb;
-    border-color: #d1d5db;
-}
-
-.btn-modal-folder .btn-icon {
-    font-size: 16px;
 }
 
 /* Duplicate files list in modal */

@@ -927,30 +927,10 @@ window.createFolder = async function() {
         return;
     }
     
-    // Сохраняем данные модального окна перемещения, если оно было открыто
-    const moveModal = document.getElementById('moveToFolderModal');
-    const wasMoveModalOpen = moveModal && moveModal.style.display === 'flex';
-    let savedMoveFileId = null;
-    let savedMoveFileName = null;
-    let savedCurrentFolderId = null;
-    
-    if (wasMoveModalOpen && moveModal.dataset.fileId) {
-        savedMoveFileId = moveModal.dataset.fileId;
-        savedMoveFileName = moveModal.dataset.filename;
-        const folderIdStr = moveModal.dataset.currentFolderId;
-        savedCurrentFolderId = folderIdStr === 'null' ? null : parseInt(folderIdStr);
-    }
-    
     try {
         await apiCreateFolder(name);
         closeFolderModal();
         await loadFolders();
-        
-        // Если было открыто модальное окно перемещения, переоткрываем его с обновленным списком папок
-        if (wasMoveModalOpen && savedMoveFileId) {
-            openMoveToFolderModal(savedMoveFileId, savedMoveFileName, savedCurrentFolderId);
-        }
-        
         showMessage('Папка создана', 'success');
     } catch (err) {
         alert('Ошибка: ' + err.message);
@@ -1062,27 +1042,14 @@ window.openMoveToFolderModal = function(fileId, filename, currentFolderId) {
         html += `
             <div class="folder-select-empty">
                 <p>${noFoldersText}</p>
+                <button class="btn btn-secondary" onclick="closeMoveToFolderModal(); openNewFolderModal();">
+                    ${createFolderText}
+                </button>
             </div>
         `;
     }
     
     folderList.innerHTML = html;
-    
-    // Добавляем кнопку создания папки в footer модального окна (всегда видна)
-    let footer = modal.querySelector('.modal-footer-folder');
-    if (!footer) {
-        footer = document.createElement('div');
-        footer.className = 'modal-footer-folder';
-        const modalBody = modal.querySelector('.modal-body');
-        modalBody.parentNode.insertBefore(footer, modalBody.nextSibling);
-    }
-    footer.innerHTML = `
-        <button class="btn btn-secondary btn-modal-folder" onclick="closeMoveToFolderModal(); openNewFolderModal();">
-            <span class="btn-icon">➕</span>
-            <span>${createFolderText}</span>
-        </button>
-    `;
-    
     modal.style.display = 'flex';
 };
 
