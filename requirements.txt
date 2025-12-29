@@ -5,8 +5,7 @@ sqlalchemy
 passlib[bcrypt]
 python-jose[cryptography]
 faster-whisper==1.0.2
-torch>=2.1.0
-torchaudio>=2.1.0
+# torch и torchaudio устанавливаются отдельно (CPU-only) в Dockerfile для уменьшения размера
 python-docx
 openpyxl
 transformers
