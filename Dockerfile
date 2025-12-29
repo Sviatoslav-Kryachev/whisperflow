@@ -36,12 +36,17 @@ COPY frontend/ ./frontend/
 # Создание необходимых директорий
 RUN mkdir -p backend/storage/audio backend/storage/transcripts
 
+# Копирование скрипта запуска
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Установка переменных окружения
 ENV KMP_DUPLICATE_LIB_OK=TRUE
 ENV PYTHONPATH=/app/backend
+ENV PORT=8000
 
 # Открытие порта
 EXPOSE 8000
 
 # Запуск приложения
-CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["/app/start.sh"]
