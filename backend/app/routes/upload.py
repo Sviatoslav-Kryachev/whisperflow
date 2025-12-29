@@ -51,7 +51,7 @@ def process_transcription_background(file_id: str, temp_path: Path, model: str, 
         
         # Транскрибируем с отслеживанием прогресса
         # TODO: Реализовать поддержку speaker_recognition в transcribe_with_progress
-        text = transcribe_with_progress(str(temp_path), model, language, update_progress)
+        text = transcribe_with_progress(str(temp_path), model, language=language, progress_callback=update_progress)
         
         # Сохраняем результат
         text_path = TEXT_DIR / f"{file_id}.txt"

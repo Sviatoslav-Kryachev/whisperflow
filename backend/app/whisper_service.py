@@ -94,6 +94,7 @@ def transcribe(audio_path, model_name, language=None):
 
 
 def transcribe_with_progress(audio_path: str, model_name: str, 
+                              language: Optional[str] = None,
                               progress_callback: Optional[Callable[[float, str], None]] = None):
     """Транскрибирует аудио с отслеживанием прогресса"""
     # Файл уже должен быть во временной папке (скопирован в tasks.py)
@@ -103,7 +104,7 @@ def transcribe_with_progress(audio_path: str, model_name: str,
         if progress_callback:
             progress_callback(5.0, "Подготовка...")
         
-        file_size = os.path.getsize(safe_path)
+        file_size = os.getsize(safe_path)
         file_size_mb = file_size / (1024 * 1024)
         
         if progress_callback:
@@ -116,12 +117,14 @@ def transcribe_with_progress(audio_path: str, model_name: str,
         
         if progress_callback:
             device_info = f"GPU ({DEVICE})" if DEVICE == "cuda" else "CPU"
-            progress_callback(30.0, f"Распознавание на {device_info} ({file_size_mb:.1f} МБ)...")
+            lang_msg = f" ({language})" if language else " (авто)"
+            progress_callback(30.0, f"Распознавание на {device_info}{lang_msg} ({file_size_mb:.1f} МБ)...")
         
         # Оптимизированные параметры для быстрой обработки
         segments, info = model.transcribe(
             safe_path,
             beam_size=1,  # Быстрый поиск
+            language=language,  # Язык если указан
             vad_filter=True,  # Фильтрация тишины
             vad_parameters=dict(
                 min_silence_duration_ms=500
