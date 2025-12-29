@@ -46,11 +46,25 @@ def check_database_connection():
             # PostgreSQL
             db_name = DATABASE_URL.split('/')[-1].split('?')[0]
             logger.info(f"✓ Connected to PostgreSQL database: {db_name}")
+            
+            # Проверяем количество таблиц
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT COUNT(*) 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                """))
+                table_count = result.scalar()
+                logger.info(f"✓ PostgreSQL database has {table_count} tables")
         else:
             logger.info(f"✓ Connected to SQLite database")
             
     except Exception as e:
         logger.error(f"✗ Database connection failed: {e}", exc_info=True)
+        raise  # Прерываем запуск, если подключение не удалось
 
-# Проверяем подключение при импорте модуля
-check_database_connection()
+# Проверяем подключение при импорте модуля (после создания engine)
+try:
+    check_database_connection()
+except Exception as e:
+    logger.error(f"Failed to verify database connection: {e}", exc_info=True)

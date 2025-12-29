@@ -6,20 +6,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from .routes import upload, auth, transcripts, folders, export, ai, conversation
-from .database import Base, engine, SessionLocal
-from .config import AUDIO_DIR, TEXT_DIR
-from . import models  # импортируем модели для создания таблиц
-from .models import Transcript, TranscriptAI
 import logging
 
-# Настройка логирования
+# Настройка логирования ПЕРЕД импортом модулей, которые используют логирование
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 logger = logging.getLogger(__name__)
+
+from .routes import upload, auth, transcripts, folders, export, ai, conversation
+from .database import Base, engine, SessionLocal
+from .config import AUDIO_DIR, TEXT_DIR
+from . import models  # импортируем модели для создания таблиц
+from .models import Transcript, TranscriptAI
 
 # преобразуем строки в Path
 AUDIO_DIR = Path(AUDIO_DIR)
