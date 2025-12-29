@@ -32,21 +32,33 @@ def verify_password(p, h):
     Проверяет пароль с помощью bcrypt.
     При проверке тоже обрезаем пароль до 72 байт, если он длиннее.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if not isinstance(p, str):
         p = str(p)
     
-    # Кодируем пароль в UTF-8
-    p_bytes = p.encode('utf-8')
+    if not h:
+        logger.warning("Hash is empty or None")
+        return False
     
-    # Обрезаем до 72 байт, если пароль длиннее (та же логика, что и в hash_password)
-    if len(p_bytes) > 72:
-        p_bytes = p_bytes[:72]
-    
-    # Кодируем хеш в байты
-    h_bytes = h.encode('utf-8') if isinstance(h, str) else h
-    
-    # Проверяем пароль через bcrypt
-    return bcrypt.checkpw(p_bytes, h_bytes)
+    try:
+        # Кодируем пароль в UTF-8
+        p_bytes = p.encode('utf-8')
+        
+        # Обрезаем до 72 байт, если пароль длиннее (та же логика, что и в hash_password)
+        if len(p_bytes) > 72:
+            p_bytes = p_bytes[:72]
+        
+        # Кодируем хеш в байты
+        h_bytes = h.encode('utf-8') if isinstance(h, str) else h
+        
+        # Проверяем пароль через bcrypt
+        result = bcrypt.checkpw(p_bytes, h_bytes)
+        return result
+    except Exception as e:
+        logger.error(f"Error verifying password: {e}", exc_info=True)
+        return False
 
 def create_token(data: dict):
     to_encode = data.copy()

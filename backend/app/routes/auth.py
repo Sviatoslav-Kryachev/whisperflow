@@ -74,19 +74,36 @@ async def register(credentials: RegisterRequest):
 async def login(credentials: LoginRequest):
     db: Session = SessionLocal()
     try:
-        # Ищем пользователя по email (username)
-        user = db.query(User).filter(User.email == credentials.username).first()
+        logger.info(f"Login attempt for: {credentials.username}")
+        
+        # Ищем пользователя по email (username) - нормализуем email
+        email = credentials.username.strip().lower()
+        user = db.query(User).filter(User.email == email).first()
         
         if not user:
+            logger.warning(f"User not found: {email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        if not verify_password(credentials.password, user.password):
+        logger.info(f"User found: {user.email}, verifying password...")
+        
+        # Проверяем пароль
+        password_valid = verify_password(credentials.password, user.password)
+        logger.info(f"Password verification result: {password_valid}")
+        
+        if not password_valid:
+            logger.warning(f"Invalid password for user: {email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Создаём токен
         token = create_token({"sub": user.email, "user_id": user.id})
+        logger.info(f"Login successful for: {email}")
         
         return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Login failed")
     finally:
         db.close()
 
