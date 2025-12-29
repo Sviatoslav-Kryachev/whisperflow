@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import User
-from ..auth import verify_password, create_token, hash_password
+from ..auth import verify_password, create_token, hash_password, create_reset_token, verify_reset_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,15 +89,65 @@ class ForgotPasswordRequest(BaseModel):
 
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
-    # Заглушка для восстановления пароля
-    # В будущем здесь можно добавить отправку email с токеном сброса
+    """Генерирует токен для сброса пароля"""
     db: Session = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == request.email).first()
+        email = request.email.strip().lower()
+        user = db.query(User).filter(User.email == email).first()
         if not user:
             # Не раскрываем, существует ли пользователь (безопасность)
-            return {"message": "Если пользователь с таким email существует, инструкции отправлены"}
-        return {"message": "Инструкции по восстановлению пароля отправлены на ваш email (функция в разработке)"}
+            return {
+                "message": "Если пользователь с таким email существует, токен сброса будет показан ниже",
+                "token": None
+            }
+        
+        # Генерируем токен сброса
+        reset_token = create_reset_token(user.email, user.id)
+        
+        # В реальном приложении токен должен отправляться на email
+        # Здесь показываем его напрямую для удобства
+        return {
+            "message": "Токен для сброса пароля (действителен 1 час):",
+            "token": reset_token,
+            "instructions": "Скопируйте этот токен и используйте его на странице сброса пароля"
+        }
+    finally:
+        db.close()
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Сбрасывает пароль по токену"""
+    db: Session = SessionLocal()
+    try:
+        # Валидация пароля
+        if not request.new_password or len(request.new_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        
+        # Проверяем токен
+        token_data = verify_reset_token(request.token)
+        if not token_data:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+        # Находим пользователя
+        user = db.query(User).filter(User.email == token_data["email"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Обновляем пароль
+        user.password = hash_password(request.new_password)
+        db.commit()
+        
+        return {"message": "Password reset successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Password reset error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Password reset failed")
     finally:
         db.close()
 

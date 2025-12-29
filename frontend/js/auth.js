@@ -245,6 +245,137 @@ forgotPasswordBtn?.addEventListener("click", async () => {
     }
 });
 
+// Копирование токена сброса
+window.copyResetToken = function() {
+    const tokenInput = document.getElementById('resetTokenDisplay');
+    if (tokenInput) {
+        tokenInput.select();
+        document.execCommand('copy');
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Скопировано!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '#0ea5e9';
+        }, 2000);
+    }
+};
+
+// Показ формы сброса пароля
+window.showResetPasswordForm = function(token) {
+    // Скрываем форму восстановления
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    if (forgotForm) {
+        forgotForm.classList.remove('active');
+    }
+    
+    // Создаем или показываем форму сброса пароля
+    let resetForm = document.getElementById('resetPasswordForm');
+    if (!resetForm) {
+        resetForm = document.createElement('div');
+        resetForm.id = 'resetPasswordForm';
+        resetForm.className = 'auth-form';
+        resetForm.innerHTML = `
+            <h2>Сброс пароля</h2>
+            <p class="info-text">Введите новый пароль</p>
+            <div class="form-group">
+                <input type="password" id="resetNewPassword" placeholder="Новый пароль (минимум 6 символов)" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="resetPasswordConfirm" placeholder="Подтвердите новый пароль" required>
+            </div>
+            <input type="hidden" id="resetToken" value="${token}">
+            <button id="resetPasswordBtn" class="btn btn-primary">Установить новый пароль</button>
+            <div class="auth-links">
+                <a href="#" id="backToLoginFromResetLink">Вернуться к входу</a>
+            </div>
+            <div id="resetPasswordMessage" class="message"></div>
+        `;
+        
+        const authContainer = document.querySelector('.auth-container');
+        if (authContainer) {
+            authContainer.appendChild(resetForm);
+        }
+    } else {
+        document.getElementById('resetToken').value = token;
+    }
+    
+    resetForm.classList.add('active');
+    
+    // Обработчик кнопки сброса пароля
+    const resetBtn = document.getElementById('resetPasswordBtn');
+    if (resetBtn && !resetBtn.dataset.listenerAdded) {
+        resetBtn.dataset.listenerAdded = 'true';
+        resetBtn.addEventListener('click', async () => {
+            const token = document.getElementById('resetToken').value;
+            const newPassword = document.getElementById('resetNewPassword').value;
+            const confirmPassword = document.getElementById('resetPasswordConfirm').value;
+            const messageDiv = document.getElementById('resetPasswordMessage');
+            
+            if (!newPassword || newPassword.length < 6) {
+                showMessage(messageDiv, "Пароль должен содержать минимум 6 символов", "error");
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showMessage(messageDiv, "Пароли не совпадают", "error");
+                return;
+            }
+            
+            try {
+                resetBtn.disabled = true;
+                resetBtn.textContent = "Установка...";
+                
+                const response = await fetch(`${window.location.origin}/auth/reset-password`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ token, new_password: newPassword })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    showMessage(messageDiv, errorData.detail || "Ошибка сброса пароля", "error");
+                    return;
+                }
+                
+                showMessage(messageDiv, "Пароль успешно изменен! Теперь вы можете войти.", "success");
+                
+                // Через 2 секунды переключаемся на форму входа
+                setTimeout(() => {
+                    resetForm.classList.remove('active');
+                    const loginForm = document.getElementById('loginForm');
+                    if (loginForm) {
+                        loginForm.classList.add('active');
+                    }
+                }, 2000);
+                
+            } catch (err) {
+                showMessage(messageDiv, "Ошибка подключения: " + err.message, "error");
+            } finally {
+                resetBtn.disabled = false;
+                resetBtn.textContent = "Установить новый пароль";
+            }
+        });
+    }
+    
+    // Обработчик кнопки "Вернуться к входу"
+    const backLink = document.getElementById('backToLoginFromResetLink');
+    if (backLink && !backLink.dataset.listenerAdded) {
+        backLink.dataset.listenerAdded = 'true';
+        backLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetForm.classList.remove('active');
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.classList.add('active');
+            }
+        });
+    }
+};
+
 // Поддержка Enter для отправки форм
 [usernameInput, passwordInput].forEach(input => {
     input?.addEventListener("keypress", (e) => {

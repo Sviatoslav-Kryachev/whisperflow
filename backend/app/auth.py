@@ -1,5 +1,5 @@
 import bcrypt
-from jose import jwt
+from jose import jwt, JWTError, ExpiredSignatureError
 from datetime import datetime, timedelta
 from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -60,3 +60,22 @@ def create_token(data: dict):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_reset_token(email: str, user_id: int):
+    """Создаёт токен для сброса пароля (действителен 1 час)"""
+    to_encode = {"sub": email, "user_id": user_id, "type": "password_reset"}
+    expire = datetime.utcnow() + timedelta(hours=1)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_reset_token(token: str):
+    """Проверяет токен сброса пароля и возвращает данные пользователя"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "password_reset":
+            return None
+        return {"email": payload.get("sub"), "user_id": payload.get("user_id")}
+    except ExpiredSignatureError:
+        return None
+    except JWTError:
+        return None
