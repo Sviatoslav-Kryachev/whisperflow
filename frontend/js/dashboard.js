@@ -572,14 +572,17 @@ const timerIntervals = {}; // Интервалы для таймеров
 
 // Форматирование времени в MM:SS или HH:MM:SS
 function formatElapsedTime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+    // Убеждаемся, что seconds - это число и не отрицательное
+    const secs = Math.max(0, Math.floor(seconds));
+    
+    const hours = Math.floor(secs / 3600);
+    const minutes = Math.floor((secs % 3600) / 60);
+    const secsRemainder = secs % 60;
     
     if (hours > 0) {
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secsRemainder).padStart(2, '0')}`;
     }
-    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return `${String(minutes).padStart(2, '0')}:${String(secsRemainder).padStart(2, '0')}`;
 }
 
 // Обновление таймера для одного файла
@@ -591,13 +594,39 @@ function updateTimer(fileId, startTime) {
     const start = typeof startTime === 'string' ? parseInt(startTime, 10) : startTime;
     if (isNaN(start) || start <= 0) return;
     
-    const elapsed = Math.floor((Date.now() - start) / 1000);
-    if (elapsed < 0) {
-        // Если elapsed отрицательный, значит startTime в будущем - используем 0
-        timerElement.textContent = formatElapsedTime(0);
+    // Если startTime слишком старый (больше 1 часа), значит это старая задача
+    // В этом случае используем время с момента загрузки страницы или начинаем с 0
+    const now = Date.now();
+    const maxReasonableStart = now - (60 * 60 * 1000); // 1 час назад
+    
+    let elapsed;
+    if (start > maxReasonableStart) {
+        // Нормальная ситуация - используем реальное время
+        elapsed = Math.floor((now - start) / 1000);
+        if (elapsed < 0) {
+            elapsed = 0;
+        }
     } else {
-        timerElement.textContent = formatElapsedTime(elapsed);
+        // Старая задача - используем время с момента загрузки страницы
+        // Проверяем, есть ли сохраненное время начала просмотра
+        const timerKey = `timer_start_${fileId}`;
+        let viewStartTime = sessionStorage.getItem(timerKey);
+        
+        if (!viewStartTime) {
+            // Первый раз видим эту задачу - сохраняем текущее время
+            viewStartTime = now;
+            sessionStorage.setItem(timerKey, viewStartTime.toString());
+            elapsed = 0;
+        } else {
+            // Используем время с момента первого просмотра
+            elapsed = Math.floor((now - parseInt(viewStartTime, 10)) / 1000);
+            if (elapsed < 0) {
+                elapsed = 0;
+            }
+        }
     }
+    
+    timerElement.textContent = formatElapsedTime(elapsed);
 }
 
 // Запуск таймера для файла
@@ -622,6 +651,9 @@ function stopTimer(fileId) {
         clearInterval(timerIntervals[fileId]);
         delete timerIntervals[fileId];
     }
+    // Очищаем сохраненное время начала просмотра
+    const timerKey = `timer_start_${fileId}`;
+    sessionStorage.removeItem(timerKey);
 }
 
 function trackProcessingStatus(fileId) {
