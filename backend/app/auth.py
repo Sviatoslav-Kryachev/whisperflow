@@ -9,7 +9,7 @@ def hash_password(p):
     """
     Хеширует пароль с помощью bcrypt.
     Bcrypt имеет ограничение на длину пароля в 72 байта.
-    Обрезаем пароль до 72 байт (UTF-8), если он длиннее.
+    Обрезаем пароль до 70 байт (UTF-8), если он длиннее, для надёжности.
     """
     if not isinstance(p, str):
         p = str(p)
@@ -17,26 +17,25 @@ def hash_password(p):
     # Кодируем в UTF-8 для правильного подсчёта байт
     p_bytes = p.encode('utf-8')
     
-    # Обрезаем до 71 байт (оставляем запас), если пароль длиннее
+    # Обрезаем до 70 байт (оставляем запас), если пароль длиннее
     # Bcrypt имеет ограничение 72 байта, но лучше оставить запас
-    if len(p_bytes) > 71:
-        # Обрезаем байты напрямую до 71 байт
-        p_bytes = p_bytes[:71]
+    if len(p_bytes) > 70:
+        # Обрезаем байты напрямую до 70 байт
+        p_bytes = p_bytes[:70]
         # Декодируем обратно (может быть меньше символов из-за обрезки)
         # Используем errors='ignore' чтобы просто пропустить некорректные байты
         p = p_bytes.decode('utf-8', errors='ignore')
-        # Убеждаемся, что после декодирования всё ещё <= 71 байт
-        final_bytes = p.encode('utf-8')
-        if len(final_bytes) > 71:
-            # Если всё ещё больше (крайне маловероятно), обрезаем ещё раз
-            p = final_bytes[:71].decode('utf-8', errors='ignore')
+        # Убеждаемся, что после декодирования всё ещё <= 70 байт
+        # Используем цикл для гарантии
+        while len(p.encode('utf-8')) > 70 and len(p) > 0:
+            p = p[:-1]
     
     return pwd.hash(p)
 
 def verify_password(p, h):
     """
     Проверяет пароль с помощью bcrypt.
-    При проверке тоже обрезаем пароль до 72 байт, если он длиннее.
+    При проверке тоже обрезаем пароль до 70 байт, если он длиннее.
     """
     if not isinstance(p, str):
         p = str(p)
@@ -44,13 +43,13 @@ def verify_password(p, h):
     # Кодируем в UTF-8 для правильного подсчёта байт
     p_bytes = p.encode('utf-8')
     
-    # Обрезаем до 71 байт, если пароль длиннее (та же логика, что и в hash_password)
-    if len(p_bytes) > 71:
-        p_bytes = p_bytes[:71]
+    # Обрезаем до 70 байт, если пароль длиннее (та же логика, что и в hash_password)
+    if len(p_bytes) > 70:
+        p_bytes = p_bytes[:70]
         p = p_bytes.decode('utf-8', errors='ignore')
-        final_bytes = p.encode('utf-8')
-        if len(final_bytes) > 71:
-            p = final_bytes[:71].decode('utf-8', errors='ignore')
+        # Используем цикл для гарантии
+        while len(p.encode('utf-8')) > 70 and len(p) > 0:
+            p = p[:-1]
     
     return pwd.verify(p, h)
 
