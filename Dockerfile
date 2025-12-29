@@ -25,12 +25,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копирование всего проекта
 COPY . .
 
-# Установка переменной окружения для OpenMP
-ENV KMP_DUPLICATE_LIB_OK=TRUE
+# Создание необходимых директорий
+RUN mkdir -p backend/storage/audio backend/storage/transcripts
 
-# Открытие порта
-EXPOSE $PORT
+# Установка переменных окружения
+ENV KMP_DUPLICATE_LIB_OK=TRUE
+ENV PYTHONPATH=/app/backend
+ENV PORT=8000
+
+# Открытие порта (Railway использует переменную PORT)
+EXPOSE 8000
 
 # Запуск приложения
-CMD PYTHONPATH=backend uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1
+# Railway автоматически установит переменную PORT
+CMD python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1
 
