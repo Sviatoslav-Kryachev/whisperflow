@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import User
 from ..auth import verify_password, create_token, hash_password
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,14 +22,22 @@ class RegisterRequest(BaseModel):
 async def register(credentials: RegisterRequest):
     db: Session = SessionLocal()
     try:
+        # Валидация email
+        if not credentials.email or not credentials.email.strip():
+            raise HTTPException(status_code=400, detail="Email is required")
+        
+        # Валидация пароля
+        if not credentials.password or len(credentials.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        
         # Проверяем, существует ли пользователь
-        existing_user = db.query(User).filter(User.email == credentials.email).first()
+        existing_user = db.query(User).filter(User.email == credentials.email.strip().lower()).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="User with this email already exists")
         
         # Создаём нового пользователя
         hashed_password = hash_password(credentials.password)
-        new_user = User(email=credentials.email, password=hashed_password)
+        new_user = User(email=credentials.email.strip().lower(), password=hashed_password)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
@@ -39,7 +50,9 @@ async def register(credentials: RegisterRequest):
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        logger.error(f"Registration error: {e}", exc_info=True)
+        # Не раскрываем детали ошибки в production для безопасности
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
     finally:
         db.close()
 

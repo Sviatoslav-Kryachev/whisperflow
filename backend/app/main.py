@@ -63,59 +63,17 @@ async def startup_events():
     finally:
         db.close()
     
-    # Предзагрузка AI моделей в фоне
-    import asyncio
-    from .ai_service import _get_summarization_model, _get_sentiment_model, GOOGLETRANS_AVAILABLE
+    # Проверяем доступность googletrans (без загрузки моделей)
+    from .ai_service import GOOGLETRANS_AVAILABLE
     
-    # Проверяем доступность googletrans
     if not GOOGLETRANS_AVAILABLE:
         logger.warning("⚠️  googletrans не установлен. Перевод будет недоступен.")
         logger.warning("   Установите: pip install googletrans==4.0.0rc1")
     else:
         logger.info("✓ googletrans доступен для переводов")
     
-    async def load_models_async():
-        """Загружаем модели асинхронно в фоне"""
-        try:
-            logger.info("Starting background preload of AI models...")
-            
-            # Загружаем модели в отдельном потоке, чтобы не блокировать старт сервера
-            import threading
-            
-            def load_summarization():
-                try:
-                    logger.info("Preloading summarization model...")
-                    model = _get_summarization_model()
-                    if model:
-                        logger.info("Summarization model loaded successfully")
-                    else:
-                        logger.info("Summarization model not available (will use fallback method)")
-                except Exception as e:
-                    logger.info(f"Summarization model not available: {e}")
-            
-            def load_sentiment():
-                try:
-                    logger.info("Preloading sentiment model...")
-                    _get_sentiment_model()
-                    logger.info("Sentiment model loaded successfully")
-                except Exception as e:
-                    logger.warning(f"Could not preload sentiment model: {e}")
-            
-            # Запускаем загрузку в отдельных потоках
-            thread1 = threading.Thread(target=load_summarization, daemon=True)
-            thread2 = threading.Thread(target=load_sentiment, daemon=True)
-            
-            thread1.start()
-            thread2.start()
-            
-            # Не ждем завершения - модели загрузятся в фоне
-            logger.info("AI models preloading started in background")
-            
-        except Exception as e:
-            logger.error(f"Error preloading AI models: {e}")
-    
-    # Запускаем предзагрузку в фоне
-    asyncio.create_task(load_models_async())
+    # AI модели будут загружаться по требованию (lazy loading) для экономии памяти
+    logger.info("AI models will be loaded on-demand to save memory")
 
 
 # CORS для фронтенда
