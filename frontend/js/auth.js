@@ -146,6 +146,14 @@ registerBtn?.addEventListener("click", async () => {
         showMessage(registerMessage, "Пароль должен быть не менее 6 символов", "error");
         return;
     }
+    
+    // Информационное сообщение о длине пароля (bcrypt ограничение 72 байта)
+    // Бэкенд автоматически обрезает пароль, если он длиннее 72 байт
+    const passwordBytes = new TextEncoder().encode(password).length;
+    if (passwordBytes > 72) {
+        // Не блокируем, просто информируем - бэкенд обработает
+        console.warn("Пароль будет обрезан до 72 байт при сохранении");
+    }
 
     try {
         registerBtn.disabled = true;
