@@ -587,8 +587,17 @@ function updateTimer(fileId, startTime) {
     const timerElement = document.querySelector(`.processing-timer[data-file-id="${fileId}"] .timer-value`);
     if (!timerElement) return;
     
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    timerElement.textContent = formatElapsedTime(elapsed);
+    // Убеждаемся, что startTime - это число (timestamp в миллисекундах)
+    const start = typeof startTime === 'string' ? parseInt(startTime, 10) : startTime;
+    if (isNaN(start) || start <= 0) return;
+    
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    if (elapsed < 0) {
+        // Если elapsed отрицательный, значит startTime в будущем - используем 0
+        timerElement.textContent = formatElapsedTime(0);
+    } else {
+        timerElement.textContent = formatElapsedTime(elapsed);
+    }
 }
 
 // Запуск таймера для файла

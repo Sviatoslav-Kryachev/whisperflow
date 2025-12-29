@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from ..config import AUDIO_DIR, TEXT_DIR
 from ..models import Transcript
 from ..database import SessionLocal
-from ..whisper_service import transcribe
+from ..whisper_service import transcribe, transcribe_with_progress
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
@@ -19,22 +19,39 @@ logger = logging.getLogger(__name__)
 
 def process_transcription_background(file_id: str, temp_path: Path, model: str, language: str = None, speaker_recognition: bool = False):
     """Фоновая обработка транскрипции (выполняется в отдельном потоке)"""
+    
     db = SessionLocal()
     try:
         transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
         if not transcript:
             return
         
+        # Callback для обновления прогресса
+        def update_progress(progress: float, message: str):
+            try:
+                # Создаём новую сессию для обновления прогресса
+                progress_db = SessionLocal()
+                try:
+                    progress_transcript = progress_db.query(Transcript).filter(Transcript.file_id == file_id).first()
+                    if progress_transcript:
+                        progress_transcript.progress = progress
+                        progress_transcript.status_message = message
+                        progress_db.commit()
+                finally:
+                    progress_db.close()
+            except Exception as e:
+                logger.error(f"Error updating progress: {e}")
+        
         transcript.status = "processing"
-        transcript.progress = 30.0
+        transcript.progress = 5.0
         lang_msg = f" ({language})" if language else " (авто)"
         speaker_msg = " с распознаванием говорящих" if speaker_recognition else ""
-        transcript.status_message = f"Распознавание речи{lang_msg}{speaker_msg}..."
+        transcript.status_message = f"Подготовка{lang_msg}..."
         db.commit()
         
-        # Транскрибируем
-        # TODO: Реализовать поддержку speaker_recognition в transcribe
-        text = transcribe(str(temp_path), model, language)
+        # Транскрибируем с отслеживанием прогресса
+        # TODO: Реализовать поддержку speaker_recognition в transcribe_with_progress
+        text = transcribe_with_progress(str(temp_path), model, language, update_progress)
         
         # Сохраняем результат
         text_path = TEXT_DIR / f"{file_id}.txt"
@@ -49,7 +66,7 @@ def process_transcription_background(file_id: str, temp_path: Path, model: str, 
         logger.info(f"Transcription completed: {file_id}")
         
     except Exception as e:
-        logger.error(f"Transcription failed for {file_id}: {e}")
+        logger.error(f"Transcription failed for {file_id}: {e}", exc_info=True)
         try:
             transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
             if transcript:
