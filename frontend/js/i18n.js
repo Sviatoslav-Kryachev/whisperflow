@@ -762,27 +762,11 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Mobile sidebar toggle (для sidebar с папками)
+// Mobile sidebar toggle
 function toggleMobileSidebar() {
     const sidebar = document.querySelector('.sidebar');
     if (sidebar) {
         sidebar.classList.toggle('mobile-open');
-    }
-}
-
-// Mobile navigation menu toggle (для header навигации)
-function toggleMobileNav() {
-    const mobileNav = document.getElementById('mobileNavMenu');
-    if (mobileNav) {
-        mobileNav.classList.toggle('show');
-    }
-}
-
-// Close mobile navigation menu
-function closeMobileNav() {
-    const mobileNav = document.getElementById('mobileNavMenu');
-    if (mobileNav) {
-        mobileNav.classList.remove('show');
     }
 }
 
@@ -794,16 +778,6 @@ document.addEventListener('click', function(e) {
     if (sidebar && sidebar.classList.contains('mobile-open')) {
         if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
             sidebar.classList.remove('mobile-open');
-        }
-    }
-    
-    // Close mobile nav menu when clicking outside
-    const mobileNav = document.getElementById('mobileNavMenu');
-    const mobileNavBtn = document.querySelector('.mobile-menu-btn');
-    
-    if (mobileNav && mobileNav.classList.contains('show')) {
-        if (!mobileNav.contains(e.target) && !mobileNavBtn.contains(e.target)) {
-            mobileNav.classList.remove('show');
         }
     }
 });
