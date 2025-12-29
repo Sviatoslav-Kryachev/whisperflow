@@ -1,10 +1,13 @@
+# Fix OpenMP conflict: установить переменную окружения ДО импорта torch/faster-whisper
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 from faster_whisper import WhisperModel
 from .utils import format_timestamp
 from typing import Callable, Optional
 import tempfile
 from pathlib import Path
 import uuid
-import os
 import torch
 import logging
 

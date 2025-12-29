@@ -432,13 +432,13 @@ window.renderTranscripts = function renderTranscripts(transcripts) {
                         <div class="progress-bar-small" style="width: ${transcript.progress}%"></div>
                         </div>
                         <p class="status-message">${escapeHtml(statusMsg)}</p>
-                        ${transcript.created_at ? `<p class="processing-timer" data-file-id="${transcript.id}" data-start-time="${new Date(transcript.created_at).getTime()}">⏱️ Время обработки: <span class="timer-value">00:00</span></p>` : ''}
+                        ${transcript.created_at ? `<p class="processing-timer" data-file-id="${transcript.id}" data-start-time="${new Date(transcript.created_at).getTime()}">⏱️ ${t('processing.time')} <span class="timer-value">00:00</span></p>` : ''}
                     </div>` : ''
                 }
                 ${transcript.status === 'completed' && transcript.created_at && transcript.completed_at ? 
-                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ Время обработки: <span class="timer-value">${formatElapsedTime(Math.floor((new Date(transcript.completed_at).getTime() - new Date(transcript.created_at).getTime()) / 1000))}</span></p>` : 
+                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ ${t('processing.time')} <span class="timer-value">${formatElapsedTime(Math.floor((new Date(transcript.completed_at).getTime() - new Date(transcript.created_at).getTime()) / 1000))}</span></p>` : 
                     transcript.status === 'completed' && transcript.created_at ?
-                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ Время обработки: <span class="timer-value">—</span></p>` : ''
+                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ ${t('processing.time')} <span class="timer-value">—</span></p>` : ''
                 }
                 ${transcript.status === 'completed' ? 
                     `<p class="transcript-preview">${escapeHtml(transcript.preview || "")}</p>` : ''
@@ -447,9 +447,9 @@ window.renderTranscripts = function renderTranscripts(transcripts) {
                     `<p class="error-message">Ошибка: ${escapeHtml(transcript.error_message || "Неизвестная ошибка")}</p>` : ''
                 }
                 <p class="transcript-meta">
-                    Модель: ${transcript.model} | 
-                    ${transcript.status === 'completed' ? `Размер: ${formatSize(transcript.size)} | ` : ''}
-                    ${transcript.created_at ? `Создано: ${formatDate(transcript.created_at)}` : ''}
+                    ${t('transcript.meta.model')}: ${transcript.model} | 
+                    ${transcript.status === 'completed' ? `${t('transcript.meta.size')}: ${formatSize(transcript.size)} | ` : ''}
+                    ${transcript.created_at ? `${t('transcript.meta.created')}: ${formatDate(transcript.created_at)}` : ''}
                 </p>
             </div>
             <div class="transcript-actions">

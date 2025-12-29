@@ -22,11 +22,21 @@ window.toggleFilters = function() {
     const btn = document.getElementById('filterToggleBtn');
     if (panel.style.display === 'none' || !panel.style.display) {
         panel.style.display = 'block';
-        btn.textContent = '🔼 Скрыть фильтры';
+        if (typeof t !== 'undefined') {
+            btn.innerHTML = `<span data-i18n="filters.hide">🔼 Скрыть фильтры</span>`;
+            updatePageTranslations();
+        } else {
+            btn.textContent = '🔼 Скрыть фильтры';
+        }
         updateTagsFilter();
     } else {
         panel.style.display = 'none';
-        btn.textContent = '🔽 Фильтры';
+        if (typeof t !== 'undefined') {
+            btn.innerHTML = `<span data-i18n="filters.toggle">🔽 Фильтры</span>`;
+            updatePageTranslations();
+        } else {
+            btn.textContent = '🔽 Фильтры';
+        }
     }
 };
 

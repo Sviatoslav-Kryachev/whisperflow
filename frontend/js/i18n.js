@@ -218,7 +218,25 @@ const TRANSLATIONS = {
         'filter.favorite': 'Только избранное',
         'filters.clear': 'Очистить фильтры',
         'tags.title': 'Теги:',
-        'tags.noTags': 'Нет тегов'
+        'tags.noTags': 'Нет тегов',
+        
+        // Processing time
+        'processing.time': 'Время обработки:',
+        
+        // Transcript meta
+        'transcript.meta.model': 'Модель',
+        'transcript.meta.size': 'Размер',
+        'transcript.meta.created': 'Создано',
+        
+        // Accordion
+        'accordion.showMore': 'Показать ещё',
+        'accordion.hide': 'Скрыть',
+        
+        // Language trainer
+        'nav.languageTrainer': 'Языковой тренажёр',
+        
+        // Language selector
+        'lang.autoDetect': 'Распознавание речи (авто)'
     },
     
     en: {
@@ -421,7 +439,25 @@ const TRANSLATIONS = {
         'filter.favorite': 'Only favorites',
         'filters.clear': 'Clear filters',
         'tags.title': 'Tags:',
-        'tags.noTags': 'No tags'
+        'tags.noTags': 'No tags',
+        
+        // Processing time
+        'processing.time': 'Processing time:',
+        
+        // Transcript meta
+        'transcript.meta.model': 'Model',
+        'transcript.meta.size': 'Size',
+        'transcript.meta.created': 'Created',
+        
+        // Accordion
+        'accordion.showMore': 'Show more',
+        'accordion.hide': 'Hide',
+        
+        // Language trainer
+        'nav.languageTrainer': 'Language Trainer',
+        
+        // Language selector
+        'lang.autoDetect': 'Speech recognition (auto)'
     },
     
     de: {
@@ -597,7 +633,25 @@ const TRANSLATIONS = {
         // CTA
         'cta.title': 'Bereit, Audio in Text umzuwandeln?',
         'cta.subtitle': 'Lassen Sie uns das mit unserem Online-Audio-zu-Text-Konverter tun!',
-        'cta.button': 'Audio in Text umwandeln'
+        'cta.button': 'Audio in Text umwandeln',
+        
+        // Processing time
+        'processing.time': 'Verarbeitungszeit:',
+        
+        // Transcript meta
+        'transcript.meta.model': 'Modell',
+        'transcript.meta.size': 'Größe',
+        'transcript.meta.created': 'Erstellt',
+        
+        // Accordion
+        'accordion.showMore': 'Mehr anzeigen',
+        'accordion.hide': 'Ausblenden',
+        
+        // Language trainer
+        'nav.languageTrainer': 'Sprachtrainer',
+        
+        // Language selector
+        'lang.autoDetect': 'Spracherkennung (auto)'
     }
 };
 

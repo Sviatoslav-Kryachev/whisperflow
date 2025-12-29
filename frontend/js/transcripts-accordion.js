@@ -53,7 +53,7 @@ function createAccordionHTML(items, renderItem) {
                 aria-controls="${accordionId}-content"
                 type="button"
             >
-                <span class="accordion-toggle-text">Показать ещё ${hiddenItems.length}</span>
+                <span class="accordion-toggle-text">${typeof t !== 'undefined' ? t('accordion.showMore') : 'Показать ещё'} ${hiddenItems.length}</span>
                 <span class="accordion-toggle-icon" aria-hidden="true">▼</span>
             </button>
             <div 
@@ -189,9 +189,9 @@ function updateButtonText(button, isExpanded) {
     const hiddenCount = accordionContent.children.length;
     
     if (isExpanded) {
-        textElement.textContent = `Скрыть`;
+        textElement.textContent = typeof t !== 'undefined' ? t('accordion.hide') : 'Скрыть';
     } else {
-        textElement.textContent = `Показать ещё ${hiddenCount}`;
+        textElement.textContent = `${typeof t !== 'undefined' ? t('accordion.showMore') : 'Показать ещё'} ${hiddenCount}`;
     }
 }
 

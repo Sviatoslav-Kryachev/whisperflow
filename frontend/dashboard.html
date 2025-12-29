@@ -34,7 +34,7 @@
                     </div>
                     <a href="conversation.html" class="sidebar-item" style="text-decoration: none; color: inherit;" target="_blank">
                         <span class="sidebar-icon">💬</span>
-                        <span>Языковой тренажёр</span>
+                        <span data-i18n="nav.languageTrainer">Языковой тренажёр</span>
                     </a>
                 </div>
             </div>
@@ -229,7 +229,7 @@
 <!--                    </div>-->
                             <div class="search-container">
                               <span class="search-icon">🔍</span>
-                              <input type="text" id="searchInput" class="search-input" placeholder="Поиск по файлам и тексту..." />
+                              <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="search.placeholder" placeholder="Поиск по файлам и тексту..." />
                               <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display: none;">×</button>
                             </div>
 
@@ -248,17 +248,17 @@
                     
                     <!-- Date Filter -->
                     <div class="date-filter-wrapper">
-                        <label for="filterDateFrom" class="date-filter-label">Дата от:</label>
+                        <label for="filterDateFrom" class="date-filter-label" data-i18n="filter.dateFrom">Дата от:</label>
                         <input type="date" id="filterDateFrom" class="date-filter-input" onchange="applyFilters()" />
                     </div>
                     <div class="date-filter-wrapper">
-                        <label for="filterDateTo" class="date-filter-label">Дата до:</label>
+                        <label for="filterDateTo" class="date-filter-label" data-i18n="filter.dateTo">Дата до:</label>
                         <input type="date" id="filterDateTo" class="date-filter-input" onchange="applyFilters()" />
                     </div>
                     
                     <!-- Filters Toggle -->
-                    <button class="btn-filter-toggle" id="filterToggleBtn" onclick="toggleFilters()" title="Показать фильтры">
-                        🔽 Фильтры
+                    <button class="btn-filter-toggle" id="filterToggleBtn" onclick="toggleFilters()" data-i18n-title="filters.toggleTitle" title="Показать фильтры">
+                        <span data-i18n="filters.toggle">🔽 Фильтры</span>
                     </button>
                 </div>
                 
