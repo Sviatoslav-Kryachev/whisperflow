@@ -1185,7 +1185,7 @@ window.exportAs = async function(format) {
             await apiExportTranscript(fileId, format);
         } else {
             // Fallback - прямая загрузка через fetch
-            const url = `http://127.0.0.1:8000/export/${format}/${fileId}`;
+            const url = `${window.location.origin}/export/${format}/${fileId}`;
             const response = await fetch(url);
             const blob = await response.blob();
             const downloadUrl = window.URL.createObjectURL(blob);
@@ -1988,7 +1988,7 @@ async function translateTextSimple(text, targetLanguage) {
     
     try {
         // Используем наш API для перевода
-        const API_BASE_URL = "http://127.0.0.1:8000";
+        const API_BASE_URL = window.location.origin;
         
         // Используем safeFetch если доступен, иначе обычный fetch
         let response;

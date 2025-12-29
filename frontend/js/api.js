@@ -1,4 +1,6 @@
-const API_BASE = "http://127.0.0.1:8000";
+// Автоматическое определение API базового URL
+// Использует текущий домен (работает и локально, и на Railway)
+const API_BASE = window.location.origin;
 
 // Обёртка для обработки ошибок fetch
 async function safeFetch(url, options = {}) {

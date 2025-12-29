@@ -87,7 +87,7 @@ loginBtn?.addEventListener("click", async () => {
         loginBtn.disabled = true;
         loginBtn.textContent = "Вход...";
         
-        const response = await fetch("http://127.0.0.1:8000/auth/login", {
+        const response = await fetch(`${window.location.origin}/auth/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -117,7 +117,7 @@ loginBtn?.addEventListener("click", async () => {
     } catch (err) {
         let errorMsg = err.message;
         if (err instanceof TypeError && err.message.includes('fetch')) {
-            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен.";
         }
         showMessage(loginMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
@@ -151,7 +151,7 @@ registerBtn?.addEventListener("click", async () => {
         registerBtn.disabled = true;
         registerBtn.textContent = "Регистрация...";
         
-        const response = await fetch("http://127.0.0.1:8000/auth/register", {
+        const response = await fetch(`${window.location.origin}/auth/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -181,7 +181,7 @@ registerBtn?.addEventListener("click", async () => {
     } catch (err) {
         let errorMsg = err.message;
         if (err instanceof TypeError && err.message.includes('fetch')) {
-            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен.";
         }
         showMessage(registerMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
@@ -203,7 +203,7 @@ forgotPasswordBtn?.addEventListener("click", async () => {
         forgotPasswordBtn.disabled = true;
         forgotPasswordBtn.textContent = "Отправка...";
         
-        const response = await fetch("http://127.0.0.1:8000/auth/forgot-password", {
+        const response = await fetch(`${window.location.origin}/auth/forgot-password`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -228,7 +228,7 @@ forgotPasswordBtn?.addEventListener("click", async () => {
     } catch (err) {
         let errorMsg = err.message;
         if (err instanceof TypeError && err.message.includes('fetch')) {
-            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен на http://127.0.0.1:8000";
+            errorMsg = "Ошибка подключения к серверу. Убедитесь, что сервер запущен.";
         }
         showMessage(forgotPasswordMessage, "Ошибка подключения: " + errorMsg, "error");
     } finally {
