@@ -31,12 +31,12 @@ RUN mkdir -p backend/storage/audio backend/storage/transcripts
 # Установка переменных окружения
 ENV KMP_DUPLICATE_LIB_OK=TRUE
 ENV PYTHONPATH=/app/backend
-ENV PORT=8000
 
 # Открытие порта (Railway использует переменную PORT)
 EXPOSE 8000
 
 # Запуск приложения
-# Railway автоматически установит переменную PORT
-CMD python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1
+# Railway автоматически установит переменную PORT через окружение
+# Используем exec form для лучшей обработки сигналов
+CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
 
