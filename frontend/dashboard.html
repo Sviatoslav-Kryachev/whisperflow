@@ -7,6 +7,12 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="alternate icon" href="favicon.ico">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/theme-additions.css">
+    <link rel="stylesheet" href="css/organization.css">
+    <link rel="stylesheet" href="css/model-selector.css">
+    <link rel="stylesheet" href="css/speaker-recognition.css">
+    <link rel="stylesheet" href="css/transcripts-accordion.css">
+    <link rel="stylesheet" href="css/cta.css">
 </head>
 <body class="dashboard-page">
     <!-- Header -->
@@ -71,47 +77,124 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="modelSelect" data-i18n="upload.model">Модель Whisper:</label>
-                    <select id="modelSelect" class="select-input">
-                        <option value="tiny" data-i18n="model.tiny">Tiny (быстрая, менее точная)</option>
-                        <option value="base" selected data-i18n="model.base">Base (рекомендуется)</option>
-                        <option value="small" data-i18n="model.small">Small (более точная)</option>
-                        <option value="medium" data-i18n="model.medium">Medium (очень точная)</option>
-                        <option value="large" data-i18n="model.large">Large (максимальная точность)</option>
-                    </select>
+                    <label data-i18n="upload.model">Модель Whisper:</label>
+                    <div class="model-selector">
+                        <div class="model-option" data-model="tiny" onclick="selectModel('tiny')">
+                            <div class="model-icon model-icon-tiny">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                </svg>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-name">Tiny</div>
+                                <div class="model-desc">⚡ Самый быстрый</div>
+                            </div>
+                        </div>
+                        <div class="model-option active" data-model="base" onclick="selectModel('base')">
+                            <div class="model-icon model-icon-base">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-name">Base</div>
+                                <div class="model-desc">✓ Сбалансированный</div>
+                            </div>
+                        </div>
+                        <div class="model-option" data-model="small" onclick="selectModel('small')">
+                            <div class="model-icon model-icon-small">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                    <path d="M2 17l10 5 10-5"/>
+                                    <path d="M2 12l10 5 10-5"/>
+                                </svg>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-name">Small</div>
+                                <div class="model-desc">🎯 Более точная</div>
+                            </div>
+                        </div>
+                        <div class="model-option" data-model="medium" onclick="selectModel('medium')">
+                            <div class="model-icon model-icon-medium">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                    <path d="M2 17l10 5 10-5"/>
+                                    <path d="M2 12l10 5 10-5"/>
+                                    <path d="M12 12l10 5-10 5-10-5z"/>
+                                </svg>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-name">Medium</div>
+                                <div class="model-desc">🔬 Очень точная</div>
+                            </div>
+                        </div>
+                        <div class="model-option" data-model="large" onclick="selectModel('large')">
+                            <div class="model-icon model-icon-large">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                    <path d="M2 17l10 5 10-5"/>
+                                    <path d="M2 12l10 5 10-5"/>
+                                    <path d="M12 12l10 5-10 5-10-5z"/>
+                                    <path d="M12 17l10 5-10 5-10-5z"/>
+                                </svg>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-name">Large</div>
+                                <div class="model-desc">⭐ Максимальная точность</div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="modelSelect" value="base">
                 </div>
 
                 <div class="form-group">
-                    <label for="languageSelect" data-i18n="upload.language">Язык аудио:</label>
-                    <select id="languageSelect" class="select-input">
-                        <option value="auto" selected data-i18n="lang.auto">🔍 Автоопределение</option>
-                        <option value="ru">🇷🇺 Русский</option>
-                        <option value="en">🇬🇧 English</option>
-                        <option value="de">🇩🇪 Deutsch</option>
-                        <option value="fr">🇫🇷 Français</option>
-                        <option value="es">🇪🇸 Español</option>
-                        <option value="it">🇮🇹 Italiano</option>
-                        <option value="pt">🇵🇹 Português</option>
-                        <option value="pl">🇵🇱 Polski</option>
-                        <option value="uk">🇺🇦 Українська</option>
-                        <option value="zh">🇨🇳 中文</option>
-                        <option value="ja">🇯🇵 日本語</option>
-                        <option value="ko">🇰🇷 한국어</option>
-                        <option value="ar">🇸🇦 العربية</option>
-                        <option value="tr">🇹🇷 Türkçe</option>
-                        <option value="nl">🇳🇱 Nederlands</option>
-                        <option value="cs">🇨🇿 Čeština</option>
-                        <option value="sv">🇸🇪 Svenska</option>
-                        <option value="da">🇩🇰 Dansk</option>
-                        <option value="fi">🇫🇮 Suomi</option>
-                        <option value="el">🇬🇷 Ελληνικά</option>
-                        <option value="he">🇮🇱 עברית</option>
-                        <option value="hi">🇮🇳 हिन्दी</option>
-                        <option value="hu">🇭🇺 Magyar</option>
-                        <option value="id">🇮🇩 Bahasa Indonesia</option>
-                        <option value="th">🇹🇭 ไทย</option>
-                        <option value="vi">🇻🇳 Tiếng Việt</option>
-                    </select>
+                    <div class="language-group">
+                        <div class="language-select-wrapper">
+                            <label for="languageSelect" data-i18n="upload.language">Язык аудио:</label>
+                            <select id="languageSelect" class="select-input">
+                                <option value="auto" selected data-i18n="lang.auto">🔍 Автоопределение</option>
+                                <option value="ru">🇷🇺 Русский</option>
+                                <option value="en">🇬🇧 English</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="it">🇮🇹 Italiano</option>
+                                <option value="pt">🇵🇹 Português</option>
+                                <option value="pl">🇵🇱 Polski</option>
+                                <option value="uk">🇺🇦 Українська</option>
+                                <option value="zh">🇨🇳 中文</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="ar">🇸🇦 العربية</option>
+                                <option value="tr">🇹🇷 Türkçe</option>
+                                <option value="nl">🇳🇱 Nederlands</option>
+                                <option value="cs">🇨🇿 Čeština</option>
+                                <option value="sv">🇸🇪 Svenska</option>
+                                <option value="da">🇩🇰 Dansk</option>
+                                <option value="fi">🇫🇮 Suomi</option>
+                                <option value="el">🇬🇷 Ελληνικά</option>
+                                <option value="he">🇮🇱 עברית</option>
+                                <option value="hi">🇮🇳 हिन्दी</option>
+                                <option value="hu">🇭🇺 Magyar</option>
+                                <option value="id">🇮🇩 Bahasa Indonesia</option>
+                                <option value="th">🇹🇭 ไทย</option>
+                                <option value="vi">🇻🇳 Tiếng Việt</option>
+                            </select>
+                        </div>
+                        <div class="speaker-recognition-wrapper">
+                            <label class="speaker-recognition-label">
+                                <input type="checkbox" id="speakerRecognition" class="speaker-recognition-checkbox" name="speakerRecognition">
+                                <div class="speaker-recognition-content">
+                                    <div class="speaker-recognition-header">
+                                        <span class="speaker-icon">👥</span>
+                                        <span class="speaker-recognition-title">Распознавание говорящих</span>
+                                    </div>
+                                    <p class="speaker-recognition-hint">Помечает каждую часть транскрипции указанием на говорящего</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <button id="uploadBtn" class="btn btn-primary btn-large" disabled>
@@ -126,6 +209,8 @@
                     <div class="progress-bar-wrapper">
                         <div class="progress-bar" id="progressBarFill"></div>
                     </div>
+                    <div id="progressDetails" class="progress-details" style="display: none;"></div>
+                    <div class="progress-steps" id="progressSteps"></div>
                 </div>
 
                 <div id="uploadMessage" class="message"></div>
@@ -134,7 +219,95 @@
 
         <!-- Список транскрипций -->
         <div class="transcripts-section">
-            <h2 data-i18n="transcripts.title">Мои транскрипции</h2>
+            <div class="transcripts-header">
+                <h2 data-i18n="transcripts.title">Мои транскрипции</h2>
+                <div class="transcripts-controls">
+                    <!-- Search -->
+<!--                   <div class="search-container">-->
+<!--                        <input type="text" id="searchInput" class="search-input" placeholder="Поиск по файлам и тексту..." />-->
+<!--                        <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display: none;">×</button>-->
+<!--                    </div>-->
+                            <div class="search-container">
+                              <span class="search-icon">🔍</span>
+                              <input type="text" id="searchInput" class="search-input" placeholder="Поиск по файлам и тексту..." />
+                              <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display: none;">×</button>
+                            </div>
+
+                    <!-- Sort -->
+                    <div class="sort-select-wrapper">
+                        <select id="sortSelect" class="sort-select" onchange="applySorting()">
+                            <option value="date-desc">📅 Дата (новые)</option>
+                            <option value="date-asc">📆 Дата (старые)</option>
+                            <option value="name-asc">🔤 Имя (А-Я)</option>
+                            <option value="name-desc">🔡 Имя (Я-А)</option>
+                            <option value="size-desc">📦 Размер (большие)</option>
+                            <option value="size-asc">📦 Размер (маленькие)</option>
+                            <option value="favorite-desc">⭐ Избранное</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Date Filter -->
+                    <div class="date-filter-wrapper">
+                        <label for="filterDateFrom" class="date-filter-label">Дата от:</label>
+                        <input type="date" id="filterDateFrom" class="date-filter-input" onchange="applyFilters()" />
+                    </div>
+                    <div class="date-filter-wrapper">
+                        <label for="filterDateTo" class="date-filter-label">Дата до:</label>
+                        <input type="date" id="filterDateTo" class="date-filter-input" onchange="applyFilters()" />
+                    </div>
+                    
+                    <!-- Filters Toggle -->
+                    <button class="btn-filter-toggle" id="filterToggleBtn" onclick="toggleFilters()" title="Показать фильтры">
+                        🔽 Фильтры
+                    </button>
+                </div>
+                
+                <!-- Filters Panel -->
+                <div class="filters-panel" id="filtersPanel" style="display: none;">
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>Статус:</label>
+                            <select id="filterStatus" class="filter-select" onchange="applyFilters()">
+                                <option value="all">📋 Все</option>
+                                <option value="completed">✅ Готово</option>
+                                <option value="processing">⚙️ Обработка</option>
+                                <option value="pending">⏳ Ожидание</option>
+                                <option value="failed">❌ Ошибка</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>Модель:</label>
+                            <select id="filterModel" class="filter-select" onchange="applyFilters()">
+                                <option value="all">Все</option>
+                                <option value="tiny">Tiny</option>
+                                <option value="base">Base</option>
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <button class="btn-clear-filters" onclick="clearFilters()">Очистить фильтры</button>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>
+                                <input type="checkbox" id="filterFavorite" onchange="applyFilters()" />
+                                Только избранное
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Tags Filter -->
+                    <div class="filter-tags-section">
+                        <label>Теги:</label>
+                        <div id="tagsFilterContainer" class="tags-filter-container"></div>
+                    </div>
+                </div>
+            </div>
+            
             <div id="transcriptsList" class="transcripts-list">
                 <div class="empty-state">
                     <p data-i18n="transcripts.empty">Пока нет транскрипций</p>
@@ -468,6 +641,18 @@
         </div>
     </div>
 
+    <!-- CTA Section -->
+    <div class="cta-section">
+        <div class="cta-container">
+            <h2 class="cta-title" data-i18n="cta.title">Готовы преобразовать аудио в текст?</h2>
+            <p class="cta-subtitle" data-i18n="cta.subtitle">Давайте сделаем это с помощью нашего онлайн-конвертера аудио в текст!</p>
+            <button class="cta-button" onclick="document.querySelector('.upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => { const fileInput = document.getElementById('audioFile') || document.getElementById('fileInput'); fileInput?.click(); }, 500);">
+                <span class="cta-button-icon">▲</span>
+                <span class="cta-button-text" data-i18n="cta.button">Преобразование аудио в текст</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Modal: Новая папка -->
     <div id="folderModal" class="modal" style="display: none;">
         <div class="modal-backdrop" onclick="closeFolderModal()"></div>
@@ -709,6 +894,14 @@
                             <span>📌</span>
                             <span>К закладке</span>
                         </button>
+                        <button class="btn-undo" id="undoBtn" onclick="undoEdit()" title="Отменить (Ctrl+Z)" disabled>
+                            <span>↶</span>
+                            <span>Отменить</span>
+                        </button>
+                        <button class="btn-redo" id="redoBtn" onclick="redoEdit()" title="Повторить (Ctrl+Y)" disabled>
+                            <span>↷</span>
+                            <span>Повторить</span>
+                        </button>
                     </div>
                     <div class="audio-shortcuts">
                         <small>Горячие клавиши: Space (пауза), ← → (назад/вперёд 5с), ↑ ↓ (скорость), B (закладка)</small>
@@ -766,9 +959,17 @@
     <!-- Footer -->
     <div id="footer"></div>
 
+    <script src="js/theme.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/components.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/file-organization.js"></script>
+    <script src="js/organization-ui.js"></script>
+    <script src="js/organization-functions.js"></script>
+    <script src="js/model-selector.js"></script>
+    <script src="js/transcripts-accordion.js"></script>
+    <script src="js/preview-progress.js"></script>
+    <script src="js/autosave-undo.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
 </html>

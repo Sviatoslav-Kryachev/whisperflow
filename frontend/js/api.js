@@ -35,11 +35,12 @@ async function apiCheckDuplicate(filename) {
     return await response.json();
 }
 
-async function apiUploadAudio(file, model, language = 'auto') {
+async function apiUploadAudio(file, model, language = 'auto', speakerRecognition = false) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("model", model);
     formData.append("language", language);
+    formData.append("speaker_recognition", speakerRecognition ? "true" : "false");
 
     const response = await safeFetch(`${API_BASE}/upload`, {
         method: "POST",
@@ -51,6 +52,18 @@ async function apiUploadAudio(file, model, language = 'auto') {
 
 async function apiGetTranscript(fileId) {
     const response = await safeFetch(`${API_BASE}/transcript/${fileId}`);
+    return await response.json();
+}
+
+async function apiUpdateTranscript(fileId, transcript) {
+    const response = await safeFetch(`${API_BASE}/transcript/${fileId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript })
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to update transcript: ${response.statusText}`);
+    }
     return await response.json();
 }
 

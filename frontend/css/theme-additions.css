@@ -1,0 +1,155 @@
+/* Theme toggle button - добавьте эти стили в style.css */
+.theme-toggle {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    width: 36px;
+    height: 36px;
+    margin-right: 12px;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.theme-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* File Preview Styles - добавьте в style.css после .file-upload-area.has-file */
+.file-preview {
+    padding: 20px;
+    text-align: left;
+}
+
+.file-preview-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.file-preview-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+}
+
+.file-preview-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-preview-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.file-preview-size {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.file-preview-duration {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.file-preview-remove {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.file-preview-remove:hover {
+    background: #fecaca;
+    transform: scale(1.1);
+}
+
+.file-preview audio {
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 8px;
+}
+
+/* Enhanced Progress Bar - добавьте в style.css после .progress-info */
+.progress-details {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.progress-steps {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.progress-step.completed {
+    color: var(--text-primary);
+}
+
+.progress-step.active {
+    color: #667eea;
+    font-weight: 500;
+}
+
+.progress-step-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.progress-step.completed .progress-step-icon {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.progress-step.active .progress-step-icon {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+
+
+
+

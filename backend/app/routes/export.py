@@ -8,6 +8,8 @@ from ..models import Transcript
 import io
 import re
 import logging
+import tempfile
+import os
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
@@ -221,18 +223,35 @@ async def export_docx(file_id: str):
         
         filename = transcript.filename or 'transcript'
         
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
-        
-        return StreamingResponse(
-            buffer,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": get_content_disposition(filename, "docx"),
-                "Access-Control-Expose-Headers": "Content-Disposition"
-            }
-        )
+        # Save to a temporary file first to avoid encoding issues with BytesIO
+        # python-docx has issues saving directly to BytesIO with non-ASCII characters
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as temp_file:
+                temp_path = temp_file.name
+            doc.save(temp_path)
+            
+            # Read the file into BytesIO
+            buffer = io.BytesIO()
+            with open(temp_path, 'rb') as f:
+                buffer.write(f.read())
+            buffer.seek(0)
+            
+            return StreamingResponse(
+                buffer,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": get_content_disposition(filename, "docx"),
+                    "Access-Control-Expose-Headers": "Content-Disposition"
+                }
+            )
+        finally:
+            # Clean up temp file
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp file {temp_path}: {cleanup_error}")
     except HTTPException:
         raise
     except Exception as e:

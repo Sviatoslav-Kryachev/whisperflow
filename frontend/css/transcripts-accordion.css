@@ -1,0 +1,116 @@
+/**
+ * Стили для accordion-компонента списка транскрипций
+ * 
+ * Особенности:
+ * - Плавная анимация с использованием max-height и opacity
+ * - Поддержка prefers-reduced-motion
+ * - Оптимизация производительности
+ * - Адаптивный дизайн
+ */
+
+/* Контейнер видимых элементов */
+.transcripts-visible-items {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Контейнер аккордеона */
+.transcripts-accordion {
+    margin-top: 16px;
+}
+
+/* Кнопка переключения аккордеона */
+.transcripts-accordion-toggle {
+    width: 100%;
+    padding: 12px 20px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.transcripts-accordion-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.transcripts-accordion-toggle:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+.transcripts-accordion-toggle:active {
+    transform: scale(0.98);
+}
+
+/* Иконка кнопки */
+.accordion-toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 12px;
+    line-height: 1;
+}
+
+.transcripts-accordion-toggle.accordion-expanded .accordion-toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Контент аккордеона */
+.transcripts-accordion-content {
+    overflow: hidden;
+    display: none;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Поддержка prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    .transcripts-accordion-content {
+        transition: none;
+    }
+    
+    .accordion-toggle-icon {
+        transition: none;
+    }
+    
+    .transcripts-accordion-toggle {
+        transition: none;
+    }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .transcripts-accordion-toggle {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .transcripts-visible-items,
+    .transcripts-accordion-content {
+        gap: 12px;
+    }
+}
+
+/* Состояние, когда аккордеон открыт */
+.transcripts-accordion-content[aria-hidden="false"],
+.transcripts-accordion-content:not([aria-hidden="true"]) {
+    display: flex;
+}
+

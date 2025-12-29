@@ -7,12 +7,44 @@ html {
     scroll-behavior: smooth;
 }
 
+:root {
+    /* Light theme (default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f7fa;
+    --bg-tertiary: #f9fafb;
+    --text-primary: #333;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --border-color: #e5e7eb;
+    --border-color-light: #f3f4f6;
+    --shadow-sm: rgba(0, 0, 0, 0.05);
+    --shadow-md: rgba(0, 0, 0, 0.1);
+    --shadow-lg: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] {
+    /* Dark theme */
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --bg-tertiary: #1e293b;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-tertiary: #9ca3af;
+    --border-color: #374151;
+    --border-color-light: #4b5563;
+    --shadow-sm: rgba(0, 0, 0, 0.3);
+    --shadow-md: rgba(0, 0, 0, 0.4);
+    --shadow-lg: rgba(0, 0, 0, 0.5);
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    color: #333;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Страница логина */
@@ -782,8 +814,9 @@ body.dashboard-page {
 .progress-container {
     margin-top: 24px;
     padding: 20px;
-    background: #f9fafb;
+    background: var(--bg-tertiary);
     border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
 
 .progress-info {
@@ -966,6 +999,30 @@ body.dashboard-page {
     font-size: 13px;
     color: #6b7280;
     font-style: italic;
+}
+
+.processing-timer {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: #667eea;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.processing-timer .timer-value {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.processing-timer.completed {
+    color: #059669;
+    font-weight: 600;
+}
+
+.processing-timer.completed .timer-value {
+    color: #047857;
 }
 
 .error-message {
@@ -1705,6 +1762,7 @@ progress {
 
 .faq-question:hover {
     background: #f9fafb;
+    color: #9034ea;
 }
 
 .faq-arrow {
@@ -3022,10 +3080,81 @@ progress {
     gap: 4px;
 }
 
+.segment-text-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    position: relative;
+}
+
 .segment-original {
     font-weight: 600;
     color: #1f2937;
     line-height: 1.6;
+    flex: 1;
+    min-width: 0;
+}
+
+.segment-original[contenteditable="true"] {
+    background: #fef3c7;
+    padding: 4px 8px;
+    border-radius: 4px;
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+}
+
+.segment-edit-btn,
+.segment-save-btn,
+.segment-cancel-btn {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.segment-text-wrapper:hover .segment-edit-btn {
+    opacity: 1;
+}
+
+.segment-edit-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.segment-save-btn {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+    opacity: 1;
+}
+
+.segment-save-btn:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.segment-cancel-btn {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    opacity: 1;
+}
+
+.segment-cancel-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.segment-save-btn:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .segment-translation {
@@ -3094,8 +3223,38 @@ progress {
     align-items: center;
     gap: 8px;
     padding: 8px 0;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--border-color);
     margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-undo, .btn-redo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-undo:hover:not(:disabled), .btn-redo:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.btn-undo:disabled, .btn-redo:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-undo span:first-child, .btn-redo span:first-child {
+    font-size: 16px;
 }
 
 .btn-bookmark,
@@ -3832,8 +3991,9 @@ body.dashboard-page {
 .progress-container {
     margin-top: 24px;
     padding: 20px;
-    background: #f9fafb;
+    background: var(--bg-tertiary);
     border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
 
 .progress-info {
@@ -4016,6 +4176,30 @@ body.dashboard-page {
     font-size: 13px;
     color: #6b7280;
     font-style: italic;
+}
+
+.processing-timer {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: #667eea;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.processing-timer .timer-value {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.processing-timer.completed {
+    color: #059669;
+    font-weight: 600;
+}
+
+.processing-timer.completed .timer-value {
+    color: #047857;
 }
 
 .error-message {
@@ -6072,10 +6256,81 @@ progress {
     gap: 4px;
 }
 
+.segment-text-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    position: relative;
+}
+
 .segment-original {
     font-weight: 600;
     color: #1f2937;
     line-height: 1.6;
+    flex: 1;
+    min-width: 0;
+}
+
+.segment-original[contenteditable="true"] {
+    background: #fef3c7;
+    padding: 4px 8px;
+    border-radius: 4px;
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+}
+
+.segment-edit-btn,
+.segment-save-btn,
+.segment-cancel-btn {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.segment-text-wrapper:hover .segment-edit-btn {
+    opacity: 1;
+}
+
+.segment-edit-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.segment-save-btn {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+    opacity: 1;
+}
+
+.segment-save-btn:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.segment-cancel-btn {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    opacity: 1;
+}
+
+.segment-cancel-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.segment-save-btn:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .segment-translation {

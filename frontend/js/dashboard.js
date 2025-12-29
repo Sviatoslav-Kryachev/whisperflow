@@ -1,7 +1,7 @@
 // Элементы DOM
 const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("audioFile");
-const modelSelect = document.getElementById("modelSelect");
+const modelSelect = document.getElementById("modelSelect"); // Hidden input for compatibility
 const uploadMessage = document.getElementById("uploadMessage");
 const fileUploadArea = document.getElementById("fileUploadArea");
 const fileName = document.getElementById("fileName");
@@ -147,6 +147,8 @@ uploadBtn.addEventListener("click", async () => {
     const model = modelSelect.value;
     const languageSelect = document.getElementById('languageSelect');
     const language = languageSelect ? languageSelect.value : 'auto';
+    const speakerRecognitionCheckbox = document.getElementById('speakerRecognition');
+    const speakerRecognition = speakerRecognitionCheckbox ? speakerRecognitionCheckbox.checked : false;
 
     if (!file) {
         showMessage("Выберите файл для загрузки", "error");
@@ -159,7 +161,7 @@ uploadBtn.addEventListener("click", async () => {
         
         if (duplicateCheck.has_duplicates && duplicateCheck.similar_files.length > 0) {
             // Сохраняем данные для загрузки после подтверждения
-            pendingUploadData = { file, model, language };
+            pendingUploadData = { file, model, language, speakerRecognition };
             
             // Показываем модальное окно с дубликатами
             openDuplicateModal(file.name, duplicateCheck.similar_files);
@@ -171,11 +173,11 @@ uploadBtn.addEventListener("click", async () => {
     }
 
     // Если дубликатов нет, загружаем файл
-    await performUpload(file, model, language);
+    await performUpload(file, model, language, speakerRecognition);
 });
 
 // Функция для выполнения загрузки
-async function performUpload(file, model, language) {
+async function performUpload(file, model, language, speakerRecognition = false) {
     // Блокируем кнопку и показываем прогресс
     uploadBtn.disabled = true;
     uploadBtnText.textContent = "Обработка...";
@@ -195,7 +197,7 @@ async function performUpload(file, model, language) {
 
         // Загрузка файла
         updateProgress(30, "Отправка на сервер...");
-        const data = await apiUploadAudio(file, model, language);
+        const data = await apiUploadAudio(file, model, language, speakerRecognition);
         clearInterval(progressInterval);
 
         // Сохраняем file_id для отслеживания
@@ -216,9 +218,12 @@ async function performUpload(file, model, language) {
 
     } catch (err) {
         showMessage("Ошибка: " + err.message, "error");
-        updateProgress(0, "Ошибка");
+        updateProgress(0, "Ошибка", err.message);
         uploadBtn.disabled = false;
         uploadBtnText.textContent = "Загрузить и транскрибировать";
+        if (typeof hideProgressSteps === 'function') {
+            hideProgressSteps();
+        }
     }
 }
 
@@ -307,6 +312,20 @@ async function loadTranscripts() {
         
         const transcripts = data.transcripts || [];
         
+        // Update cache for search/filter/sort
+        if (typeof updateTranscriptsCache === 'function') {
+            updateTranscriptsCache(transcripts);
+        } else {
+            // Fallback: store in global cache
+            window.allTranscriptsCache = transcripts || [];
+        }
+        
+        // Always try to apply filters first if function exists
+        if (typeof applySearchAndFilters === 'function') {
+            // Apply filters will render
+            applySearchAndFilters();
+        } else {
+            // If no filtering functions, render directly
         if (transcripts.length === 0) {
             const emptyMessage = currentFilter.type === 'folder' 
                 ? 'В этой папке пока нет файлов' 
@@ -319,6 +338,7 @@ async function loadTranscripts() {
             `;
         } else {
             renderTranscripts(transcripts);
+            }
         }
     } catch (err) {
         console.error("Error loading transcripts:", err);
@@ -350,8 +370,29 @@ async function loadTranscripts() {
     }
 }
 
-function renderTranscripts(transcripts) {
-    const html = transcripts.map(transcript => {
+window.renderTranscripts = function renderTranscripts(transcripts) {
+    // Ensure transcriptsList exists
+    if (!transcriptsList) {
+        console.error('transcriptsList element not found');
+        return;
+    }
+    
+    // Handle empty state
+    if (!transcripts || transcripts.length === 0) {
+        const emptyMessage = currentFilter.type === 'folder' 
+            ? 'В этой папке пока нет файлов' 
+            : 'Пока нет транскрипций';
+        transcriptsList.innerHTML = `
+            <div class="empty-state">
+                <p>${emptyMessage}</p>
+                <p class="hint">Загрузите аудиофайл для начала</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Функция рендеринга одного элемента транскрипции
+    const renderItem = (transcript) => {
         const statusBadge = getStatusBadge(transcript.status, transcript.progress, transcript.status_message);
         const actions = getActionsForStatus(transcript);
         const statusMsg = transcript.status_message || '';
@@ -362,21 +403,42 @@ function renderTranscripts(transcripts) {
             ? `<span class="folder-badge" title="Папка: ${escapeHtml(folder.name)}">📂 ${escapeHtml(folder.name)}</span>` 
             : '';
         
+        // Get file ID (can be id or file_id)
+        const fileId = transcript.id || transcript.file_id;
+        
+        // Get tags for this file
+        const fileTags = typeof getFileTags === 'function' ? getFileTags(fileId) : [];
+        const tagsHtml = fileTags.length > 0 
+            ? `<div class="transcript-tags">${fileTags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}</div>`
+            : '';
+        
+        // Favorite button
+        const isFav = typeof isFavorite === 'function' ? isFavorite(fileId) : false;
+        const favoriteBtn = `<button class="btn-favorite ${isFav ? 'active' : ''}" onclick="toggleFileFavorite('${fileId}')" title="${isFav ? 'Убрать из избранного' : 'Добавить в избранное'}">${isFav ? '⭐' : '☆'}</button>`;
+        
         return `
-        <div class="transcript-item" data-file-id="${transcript.id}">
+        <div class="transcript-item ${isFav ? 'favorite' : ''}" data-file-id="${fileId}">
             <div class="transcript-info">
                 <div class="transcript-header">
+                    ${favoriteBtn}
                     <h3>${escapeHtml(transcript.filename)}</h3>
                     ${folderBadge}
                     ${statusBadge}
                 </div>
+                ${tagsHtml}
                 ${transcript.status === 'processing' || transcript.status === 'pending' ? 
                     `<div class="progress-section">
                         <div class="progress-indicator">
                         <div class="progress-bar-small" style="width: ${transcript.progress}%"></div>
                         </div>
                         <p class="status-message">${escapeHtml(statusMsg)}</p>
+                        ${transcript.created_at ? `<p class="processing-timer" data-file-id="${transcript.id}" data-start-time="${new Date(transcript.created_at).getTime()}">⏱️ Время обработки: <span class="timer-value">00:00</span></p>` : ''}
                     </div>` : ''
+                }
+                ${transcript.status === 'completed' && transcript.created_at && transcript.completed_at ? 
+                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ Время обработки: <span class="timer-value">${formatElapsedTime(Math.floor((new Date(transcript.completed_at).getTime() - new Date(transcript.created_at).getTime()) / 1000))}</span></p>` : 
+                    transcript.status === 'completed' && transcript.created_at ?
+                    `<p class="processing-timer completed" data-file-id="${transcript.id}">⏱️ Время обработки: <span class="timer-value">—</span></p>` : ''
                 }
                 ${transcript.status === 'completed' ? 
                     `<p class="transcript-preview">${escapeHtml(transcript.preview || "")}</p>` : ''
@@ -395,14 +457,41 @@ function renderTranscripts(transcripts) {
             </div>
         </div>
         `;
-    }).join("");
+    };
     
-    transcriptsList.innerHTML = html;
+    // Используем аккордеон для отображения транскрипций
+    let html;
+    if (typeof createAccordionHTML === 'function') {
+        html = createAccordionHTML(transcripts, renderItem);
+    } else {
+        // Fallback: рендерим все элементы без аккордеона
+        html = transcripts.map(renderItem).join("");
+    }
     
-    // Запускаем отслеживание для активных задач
+    if (transcriptsList) {
+        transcriptsList.innerHTML = html;
+        
+        // Инициализируем аккордеон после рендеринга
+        if (typeof initAccordion === 'function') {
+            // Используем requestAnimationFrame для инициализации после рендера
+            requestAnimationFrame(() => {
+                initAccordion();
+            });
+        }
+    } else {
+        console.error('transcriptsList element not found when rendering');
+        return;
+    }
+    
+    // Запускаем отслеживание и таймеры для активных задач
     transcripts.forEach(t => {
         if (t.status === 'pending' || t.status === 'processing') {
             trackProcessingStatus(t.id);
+            // Запускаем таймер, если есть информация о времени начала
+            if (t.created_at) {
+                const startTime = new Date(t.created_at).getTime();
+                startTimer(t.id, startTime);
+            }
         }
     });
 }
@@ -479,6 +568,52 @@ function formatDate(dateString) {
 
 // Отслеживание статуса обработки
 const trackingIntervals = {};
+const timerIntervals = {}; // Интервалы для таймеров
+
+// Форматирование времени в MM:SS или HH:MM:SS
+function formatElapsedTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+// Обновление таймера для одного файла
+function updateTimer(fileId, startTime) {
+    const timerElement = document.querySelector(`.processing-timer[data-file-id="${fileId}"] .timer-value`);
+    if (!timerElement) return;
+    
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    timerElement.textContent = formatElapsedTime(elapsed);
+}
+
+// Запуск таймера для файла
+function startTimer(fileId, startTime) {
+    // Если таймер уже запущен, не запускаем повторно
+    if (timerIntervals[fileId]) {
+        return;
+    }
+    
+    // Обновляем сразу
+    updateTimer(fileId, startTime);
+    
+    // Обновляем каждую секунду
+    timerIntervals[fileId] = setInterval(() => {
+        updateTimer(fileId, startTime);
+    }, 1000);
+}
+
+// Остановка таймера для файла
+function stopTimer(fileId) {
+    if (timerIntervals[fileId]) {
+        clearInterval(timerIntervals[fileId]);
+        delete timerIntervals[fileId];
+    }
+}
 
 function trackProcessingStatus(fileId) {
     // Если уже отслеживаем этот файл, не запускаем повторно
@@ -516,6 +651,21 @@ function trackProcessingStatus(fileId) {
                     statusMessage.textContent = status.status_message;
                 }
                 
+                // Запускаем таймер, если его еще нет, но есть время начала
+                if ((status.status === 'processing' || status.status === 'pending') && status.created_at) {
+                    const timerElement = item.querySelector('.processing-timer[data-file-id="' + fileId + '"]');
+                    if (!timerElement) {
+                        // Если таймера нет, добавляем его
+                        const progressSection = item.querySelector('.progress-section');
+                        if (progressSection) {
+                            const startTime = new Date(status.created_at).getTime();
+                            const timerHtml = `<p class="processing-timer" data-file-id="${fileId}" data-start-time="${startTime}">⏱️ <span class="timer-value">00:00</span></p>`;
+                            progressSection.insertAdjacentHTML('beforeend', timerHtml);
+                            startTimer(fileId, startTime);
+                        }
+                    }
+                }
+                
                 // Обновляем действия
                 const actionsDiv = item.querySelector('.transcript-actions');
                 if (actionsDiv) {
@@ -523,10 +673,11 @@ function trackProcessingStatus(fileId) {
                 }
             }
             
-            // Если обработка завершена или провалилась, останавливаем отслеживание
+            // Если обработка завершена или провалилась, останавливаем отслеживание и таймер
             if (status.status === 'completed' || status.status === 'failed') {
                 clearInterval(trackingIntervals[fileId]);
                 delete trackingIntervals[fileId];
+                stopTimer(fileId);
                 // Обновляем весь список
                 loadTranscripts();
             }
@@ -910,6 +1061,84 @@ window.moveToFolder = async function(fileId, folderId) {
     } catch (err) {
         alert('Ошибка: ' + err.message);
     }
+};
+
+// ================================
+// DUPLICATE MODAL
+// ================================
+
+window.openDuplicateModal = function(filename, similarFiles) {
+    const modal = document.getElementById('duplicateModal');
+    const fileNameEl = document.getElementById('duplicateFileName');
+    const filesListEl = document.getElementById('duplicateFilesList');
+    
+    if (!modal || !fileNameEl || !filesListEl) {
+        // Если модальное окно не найдено, просто показываем подтверждение
+        if (confirm(`Файл "${filename}" уже существует в базе. Загрузить всё равно?`)) {
+            confirmDuplicateUpload();
+        }
+        return;
+    }
+    
+    // Устанавливаем имя файла
+    fileNameEl.textContent = filename;
+    
+    // Формируем список похожих файлов
+    let html = '';
+    if (similarFiles && similarFiles.length > 0) {
+        similarFiles.forEach(file => {
+            const statusClass = file.status || 'unknown';
+            const statusText = {
+                'completed': 'Завершён',
+                'processing': 'Обрабатывается',
+                'pending': 'В очереди',
+                'failed': 'Ошибка'
+            }[statusClass] || 'Неизвестно';
+            
+            const date = file.created_at ? new Date(file.created_at).toLocaleDateString() : 'Неизвестно';
+            const similarity = Math.round((file.similarity || 0) * 100);
+            
+            html += `
+                <div class="duplicate-file-item">
+                    <div class="duplicate-file-name">${escapeHtml(file.filename)}</div>
+                    <div class="duplicate-file-meta">
+                        <span class="duplicate-file-status ${statusClass}">${statusText}</span>
+                        <span class="duplicate-similarity">Схожесть: ${similarity}%</span>
+                        <span>${date}</span>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        html = '<div class="duplicate-file-item"><p>Похожие файлы не найдены</p></div>';
+    }
+    
+    filesListEl.innerHTML = html;
+    modal.style.display = 'flex';
+};
+
+window.closeDuplicateModal = function() {
+    const modal = document.getElementById('duplicateModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    // Очищаем данные о загрузке
+    pendingUploadData = null;
+};
+
+window.confirmDuplicateUpload = async function() {
+    if (!pendingUploadData) {
+        closeDuplicateModal();
+        return;
+    }
+    
+    const { file, model, language, speakerRecognition } = pendingUploadData;
+    pendingUploadData = null;
+    
+    closeDuplicateModal();
+    
+    // Выполняем загрузку
+    await performUpload(file, model, language, speakerRecognition || false);
 };
 
 // ================================
@@ -1384,11 +1613,18 @@ function parseTranscriptSegments(text) {
     const segments = [];
     const lines = text.trim().split('\n');
     
-    // Pattern: [00:00:00 --> 00:00:05]  Text here
-    const pattern = /\[(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s*-->\s*(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\]\s*(.+)/;
+    // Pattern: поддерживает разные форматы:
+    // [00:00:00 --> 00:00:05]  Text here
+    // [00:00:00 -> 00:00:05]  Text here  
+    // [00:00:00 → 00:00:05]  Text here
+    // [00:00:00.000 → 00:00:05.000]  Text here
+    const pattern = /\[(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s*(?:--?>|→)\s*(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\]\s*(.+)/;
     
     lines.forEach((line, index) => {
-        const match = line.trim().match(pattern);
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return; // Пропускаем пустые строки
+        
+        const match = trimmedLine.match(pattern);
         if (match) {
             const startTime = match[1];
             const endTime = match[2];
@@ -1407,7 +1643,7 @@ function parseTranscriptSegments(text) {
                 text: textContent,
                 element: null
             });
-        } else if (line.trim()) {
+        } else if (trimmedLine) {
             // Текст без таймкода
             segments.push({
                 index: segments.length,
@@ -1415,7 +1651,7 @@ function parseTranscriptSegments(text) {
                 end: null,
                 startSeconds: null,
                 endSeconds: null,
-                text: line.trim(),
+                text: trimmedLine,
                 element: null
             });
         }
@@ -1491,6 +1727,11 @@ window.openTranscriptViewModal = async function(fileId, transcriptData) {
     
     // Парсим сегменты
     transcriptSegments = parseTranscriptSegments(transcriptText);
+    
+    // Initialize history for undo/redo
+    if (typeof initializeHistory === 'function') {
+        initializeHistory();
+    }
     
     // Рендерим сегменты
     renderTranscriptSegments();
@@ -1615,12 +1856,16 @@ function renderTranscriptSegments() {
             <div class="transcript-segment ${isBookmarked ? 'has-bookmark' : ''}" 
                  data-index="${index}" 
                  data-start="${seg.startSeconds || ''}" 
-                 data-end="${seg.endSeconds || ''}"
-                 onclick="seekToSegment(${index})">
+                 data-end="${seg.endSeconds || ''}">
                 ${timeDisplay}
                 ${bookmarkIcon}
                 <div class="segment-content">
-                    <div class="segment-original">${escapeHtml(seg.text)}</div>
+                    <div class="segment-text-wrapper">
+                        <div class="segment-original" data-segment-index="${index}" contenteditable="false">${escapeHtml(seg.text)}</div>
+                        <button class="segment-edit-btn" onclick="editSegment(${index}, event)" title="Редактировать">✏️</button>
+                        <button class="segment-save-btn" onclick="saveSegment(${index}, event)" title="Сохранить" style="display: none;">💾</button>
+                        <button class="segment-cancel-btn" onclick="cancelEditSegment(${index}, event)" title="Отменить" style="display: none;">❌</button>
+                    </div>
                     ${translationHtml}
                 </div>
             </div>
@@ -1634,6 +1879,25 @@ function renderTranscriptSegments() {
         const element = container.querySelector(`[data-index="${index}"]`);
         if (element) {
             seg.element = element;
+            // Добавляем обработчик клика для перехода к сегменту (кроме кнопок редактирования)
+            element.addEventListener('click', (e) => {
+                // Проверяем, не кликнули ли на кнопки редактирования
+                const clickedButton = e.target.closest('.segment-edit-btn, .segment-save-btn, .segment-cancel-btn');
+                if (clickedButton) {
+                    return; // Не обрабатываем клик на кнопки
+                }
+                
+                // Проверяем, не редактируется ли текст в данный момент
+                const textElement = element.querySelector('.segment-original');
+                const isEditing = textElement && (textElement.isContentEditable || textElement.contentEditable === 'true');
+                if (isEditing) {
+                    return; // Не обрабатываем клик во время редактирования
+                }
+                
+                // Во всех остальных случаях переходим к сегменту
+                e.stopPropagation();
+                seekToSegment(index);
+            });
         }
     });
     
@@ -1946,10 +2210,13 @@ window.togglePlayPause = function() {
 
 // Переход к сегменту по клику
 window.seekToSegment = function(index) {
-    if (!audioPlayer || !transcriptSegments[index]) return;
+    if (!audioPlayer || !transcriptSegments[index]) {
+        console.warn('seekToSegment: audioPlayer or segment not found', { audioPlayer: !!audioPlayer, index, segmentsLength: transcriptSegments.length });
+        return;
+    }
     
     const seg = transcriptSegments[index];
-    if (seg.startSeconds !== null) {
+    if (seg.startSeconds !== null && seg.startSeconds !== undefined) {
         audioPlayer.currentTime = seg.startSeconds;
         
         // Обновляем текущий индекс сегмента
@@ -1973,8 +2240,10 @@ window.seekToSegment = function(index) {
         
         // Если аудио на паузе, запускаем
         if (audioPlayer.paused) {
-            audioPlayer.play();
+            audioPlayer.play().catch(err => console.error('Error playing audio:', err));
         }
+    } else {
+        console.warn('seekToSegment: segment has no startSeconds', seg);
     }
 };
 
@@ -1996,29 +2265,37 @@ document.addEventListener('keydown', function(e) {
     const modal = document.getElementById('transcriptViewModal');
     if (!modal || modal.style.display !== 'flex') return;
     
-    // Space - пауза/воспроизведение
-    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    // Проверяем, не редактируется ли текст в данный момент
+    const isEditing = e.target.isContentEditable || 
+                      e.target.contentEditable === 'true' ||
+                      e.target.closest('[contenteditable="true"]');
+    
+    // Space - пауза/воспроизведение (не работает при редактировании текста)
+    if (e.code === 'Space' && 
+        e.target.tagName !== 'INPUT' && 
+        e.target.tagName !== 'TEXTAREA' &&
+        !isEditing) {
         e.preventDefault();
         togglePlayPause();
     }
     
-    // Стрелки влево/вправо - перемотка на 5 секунд
-    if (e.code === 'ArrowLeft' && !e.shiftKey && !e.ctrlKey) {
+    // Стрелки влево/вправо - перемотка на 5 секунд (не работают при редактировании)
+    if (e.code === 'ArrowLeft' && !e.shiftKey && !e.ctrlKey && !isEditing) {
         e.preventDefault();
         if (audioPlayer) {
             audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 5);
         }
     }
     
-    if (e.code === 'ArrowRight' && !e.shiftKey && !e.ctrlKey) {
+    if (e.code === 'ArrowRight' && !e.shiftKey && !e.ctrlKey && !isEditing) {
         e.preventDefault();
         if (audioPlayer) {
             audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 5);
         }
     }
     
-    // Стрелки вверх/вниз - изменение скорости
-    if (e.code === 'ArrowUp' && !e.shiftKey && !e.ctrlKey) {
+    // Стрелки вверх/вниз - изменение скорости (не работают при редактировании)
+    if (e.code === 'ArrowUp' && !e.shiftKey && !e.ctrlKey && !isEditing) {
         e.preventDefault();
         const speedSelect = document.getElementById('playbackSpeed');
         if (speedSelect) {
@@ -2032,7 +2309,7 @@ document.addEventListener('keydown', function(e) {
         }
     }
     
-    if (e.code === 'ArrowDown' && !e.shiftKey && !e.ctrlKey) {
+    if (e.code === 'ArrowDown' && !e.shiftKey && !e.ctrlKey && !isEditing) {
         e.preventDefault();
         const speedSelect = document.getElementById('playbackSpeed');
         if (speedSelect) {
@@ -2051,8 +2328,14 @@ document.addEventListener('keydown', function(e) {
         closeTranscriptViewModal();
     }
     
-    // B - установить/удалить закладку
-    if (e.code === 'KeyB' && !e.shiftKey && !e.ctrlKey && !e.altKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    // B - установить/удалить закладку (не работает при редактировании текста)
+    if (e.code === 'KeyB' && 
+        !e.shiftKey && 
+        !e.ctrlKey && 
+        !e.altKey && 
+        e.target.tagName !== 'INPUT' && 
+        e.target.tagName !== 'TEXTAREA' &&
+        !isEditing) {
         e.preventDefault();
         toggleBookmark();
     }
@@ -2110,15 +2393,15 @@ function removeBookmark(fileId) {
 window.toggleBookmark = function() {
     if (!transcriptViewFileId || currentSegmentIndex < 0) {
         alert('Сначала выберите сегмент транскрипции');
-        return;
-    }
-    
+            return;
+        }
+        
     const currentBookmarkIndex = getBookmarkSegmentIndex(transcriptViewFileId);
     
     if (currentBookmarkIndex === currentSegmentIndex) {
         // Удаляем закладку
         removeBookmark(transcriptViewFileId);
-    } else {
+        } else {
         // Устанавливаем закладку
         saveBookmark(transcriptViewFileId, currentSegmentIndex);
     }
@@ -2176,7 +2459,7 @@ function updateBookmarkButton() {
     if (jumpBtn) {
         if (hasBookmark && !isCurrentBookmarked) {
             jumpBtn.style.display = 'inline-flex';
-        } else {
+            } else {
             jumpBtn.style.display = 'none';
         }
     }
@@ -2226,3 +2509,159 @@ function scrollToSegment(segmentIndex) {
         behavior: 'smooth'
     });
 }
+
+// ===== ФУНКЦИИ ДЛЯ РЕДАКТИРОВАНИЯ СЕГМЕНТОВ =====
+
+// Сохраняем оригинальный текст для отмены
+let segmentOriginalTexts = {};
+
+// Редактировать сегмент
+window.editSegment = function(index, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    const segment = transcriptSegments[index];
+    if (!segment || !segment.element) return;
+    
+    const textElement = segment.element.querySelector('.segment-original');
+    const editBtn = segment.element.querySelector('.segment-edit-btn');
+    const saveBtn = segment.element.querySelector('.segment-save-btn');
+    const cancelBtn = segment.element.querySelector('.segment-cancel-btn');
+    
+    if (!textElement || !editBtn || !saveBtn || !cancelBtn) return;
+    
+    // Сохраняем оригинальный текст
+    segmentOriginalTexts[index] = textElement.textContent;
+    
+    // Делаем элемент редактируемым
+    textElement.contentEditable = 'true';
+    textElement.focus();
+    
+    // Показываем/скрываем кнопки
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+    cancelBtn.style.display = 'inline-block';
+    
+    // Выделяем весь текст
+    const range = document.createRange();
+    range.selectNodeContents(textElement);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+};
+
+// Сохранить отредактированный сегмент
+window.saveSegment = async function(index, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    const segment = transcriptSegments[index];
+    if (!segment || !segment.element) return;
+    
+    const textElement = segment.element.querySelector('.segment-original');
+    const editBtn = segment.element.querySelector('.segment-edit-btn');
+    const saveBtn = segment.element.querySelector('.segment-save-btn');
+    const cancelBtn = segment.element.querySelector('.segment-cancel-btn');
+    
+    if (!textElement || !editBtn || !saveBtn || !cancelBtn) return;
+    
+    // Cancel auto-save since we're saving manually
+    if (typeof cancelAutoSave === 'function') {
+        cancelAutoSave();
+    }
+    
+    const newText = textElement.textContent.trim();
+    
+    if (!newText) {
+        alert('Текст не может быть пустым');
+        return;
+    }
+    
+    if (!transcriptViewFileId) {
+        alert('Ошибка: файл не загружен');
+        return;
+    }
+    
+    // Показываем индикатор сохранения
+    saveBtn.disabled = true;
+    saveBtn.textContent = '💾 Сохранение...';
+    
+    try {
+        // Обновляем текст в сегменте
+        segment.text = newText;
+        
+        // Save to history for undo/redo
+        if (typeof saveToHistory === 'function') {
+            saveToHistory();
+        }
+        
+        // Собираем полный текст транскрипции
+        const fullTranscript = transcriptSegments.map(seg => {
+            if (seg.start && seg.end) {
+                return `[${seg.start} --> ${seg.end}]  ${seg.text}`;
+            }
+            return seg.text;
+        }).join('\n');
+        
+        // Отправляем на сервер
+        await apiUpdateTranscript(transcriptViewFileId, fullTranscript);
+        
+        // Успешно сохранено
+        textElement.contentEditable = 'false';
+        editBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾';
+        
+        // Удаляем из сохраненных оригиналов
+        delete segmentOriginalTexts[index];
+        
+        showMessage('Сегмент успешно сохранён', 'success');
+        
+    } catch (error) {
+        console.error('Error saving segment:', error);
+        alert('Ошибка сохранения: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾';
+    }
+};
+
+// Отменить редактирование сегмента
+window.cancelEditSegment = function(index, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    const segment = transcriptSegments[index];
+    if (!segment || !segment.element) return;
+    
+    const textElement = segment.element.querySelector('.segment-original');
+    const editBtn = segment.element.querySelector('.segment-edit-btn');
+    const saveBtn = segment.element.querySelector('.segment-save-btn');
+    const cancelBtn = segment.element.querySelector('.segment-cancel-btn');
+    
+    if (!textElement || !editBtn || !saveBtn || !cancelBtn) return;
+    
+    // Восстанавливаем оригинальный текст
+    if (segmentOriginalTexts[index] !== undefined) {
+        textElement.textContent = segmentOriginalTexts[index];
+        delete segmentOriginalTexts[index];
+    }
+    
+    // Отключаем редактирование
+    textElement.contentEditable = 'false';
+    
+    // Remove input listener
+    if (textElement._autoSaveHandler) {
+        textElement.removeEventListener('input', textElement._autoSaveHandler);
+        delete textElement._autoSaveHandler;
+    }
+    
+    // Показываем/скрываем кнопки
+    editBtn.style.display = 'inline-block';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+};

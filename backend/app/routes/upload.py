@@ -17,7 +17,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def process_transcription_background(file_id: str, temp_path: Path, model: str, language: str = None):
+def process_transcription_background(file_id: str, temp_path: Path, model: str, language: str = None, speaker_recognition: bool = False):
     """Фоновая обработка транскрипции (выполняется в отдельном потоке)"""
     db = SessionLocal()
     try:
@@ -28,10 +28,12 @@ def process_transcription_background(file_id: str, temp_path: Path, model: str, 
         transcript.status = "processing"
         transcript.progress = 30.0
         lang_msg = f" ({language})" if language else " (авто)"
-        transcript.status_message = f"Распознавание речи{lang_msg}..."
+        speaker_msg = " с распознаванием говорящих" if speaker_recognition else ""
+        transcript.status_message = f"Распознавание речи{lang_msg}{speaker_msg}..."
         db.commit()
         
         # Транскрибируем
+        # TODO: Реализовать поддержку speaker_recognition в transcribe
         text = transcribe(str(temp_path), model, language)
         
         # Сохраняем результат
@@ -108,7 +110,7 @@ async def check_duplicate(filename: str = Query(..., description="Имя фай�
 
 
 @router.post("/upload")
-async def upload(file: UploadFile, model: str = Form("base"), language: str = Form("auto"), background_tasks: BackgroundTasks = None):
+async def upload(file: UploadFile, model: str = Form("base"), language: str = Form("auto"), speaker_recognition: str = Form("false"), background_tasks: BackgroundTasks = None):
     uid = str(uuid.uuid4())
     audio_path = AUDIO_DIR / f"{uid}_{file.filename}"
     db = SessionLocal()
@@ -140,14 +142,15 @@ async def upload(file: UploadFile, model: str = Form("base"), language: str = Fo
         
         # Запускаем обработку в фоне
         lang_param = language if language != 'auto' else None
+        speaker_recognition_bool = speaker_recognition.lower() in ('true', '1', 'yes', 'on')
         if background_tasks:
-            background_tasks.add_task(process_transcription_background, uid, temp_path, model, lang_param)
+            background_tasks.add_task(process_transcription_background, uid, temp_path, model, lang_param, speaker_recognition_bool)
         else:
             # Fallback: запускаем в том же потоке (если background_tasks не доступен)
             import threading
             thread = threading.Thread(
                 target=process_transcription_background,
-                args=(uid, temp_path, model, lang_param)
+                args=(uid, temp_path, model, lang_param, speaker_recognition_bool)
             )
             thread.start()
 
@@ -199,6 +202,41 @@ async def get_transcript(file_id: str):
             "filename": transcript.filename,
             "model": transcript.model
         }
+    finally:
+        db.close()
+
+class UpdateTranscriptRequest(BaseModel):
+    transcript: str
+
+@router.put("/transcript/{file_id}")
+async def update_transcript(file_id: str, request: UpdateTranscriptRequest):
+    """Обновить текст транскрипции"""
+    db = SessionLocal()
+    try:
+        transcript = db.query(Transcript).filter(Transcript.file_id == file_id).first()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Транскрипция не найдена")
+        
+        if transcript.status != "completed":
+            raise HTTPException(status_code=400, detail="Можно редактировать только завершённые транскрипции")
+        
+        # Сохраняем обновлённый текст
+        text_path = TEXT_DIR / f"{file_id}.txt"
+        try:
+            text_path.write_text(request.transcript, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Error writing transcript file {file_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {str(e)}")
+        
+        return {
+            "file_id": file_id,
+            "message": "Транскрипция обновлена"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating transcript {file_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обновления: {str(e)}")
     finally:
         db.close()
 

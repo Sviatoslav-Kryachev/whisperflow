@@ -1,10 +1,40 @@
-import whisper
+from faster_whisper import WhisperModel
 from .utils import format_timestamp
 from typing import Callable, Optional
 import tempfile
 from pathlib import Path
 import uuid
 import os
+import torch
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Определяем устройство (GPU если доступно, иначе CPU)
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+COMPUTE_TYPE = "float16" if torch.cuda.is_available() else "int8"
+
+# Кэш для модели (чтобы не загружать каждый раз)
+_model_cache = {}
+
+
+def _get_model(model_name: str):
+    """Получить модель из кэша или загрузить новую"""
+    if model_name not in _model_cache:
+        logger.info(f"Loading model {model_name} on {DEVICE} with compute_type={COMPUTE_TYPE}")
+        # Маппинг имен моделей: openai/whisper-large-v3 -> large-v3
+        if model_name.startswith("openai/whisper-"):
+            model_name = model_name.replace("openai/whisper-", "")
+        elif model_name.startswith("whisper-"):
+            model_name = model_name.replace("whisper-", "")
+        
+        _model_cache[model_name] = WhisperModel(
+            model_name,
+            device=DEVICE,
+            compute_type=COMPUTE_TYPE
+        )
+        logger.info(f"Model {model_name} loaded successfully")
+    return _model_cache[model_name]
 
 
 def transcribe(audio_path, model_name, language=None):
@@ -26,20 +56,29 @@ def transcribe(audio_path, model_name, language=None):
         need_cleanup = True
     
     try:
-        model = whisper.load_model(model_name)
+        model = _get_model(model_name)
         
-        # Параметры транскрипции
-        transcribe_options = {}
-        if language:
-            transcribe_options['language'] = language
-        
-        result = model.transcribe(safe_path, **transcribe_options)
+        # Оптимизированные параметры для быстрой обработки
+        segments, info = model.transcribe(
+            safe_path,
+            beam_size=1,  # Быстрый поиск (вместо 5)
+            language=language,  # Язык если указан
+            vad_filter=True,  # Фильтрация тишины (ускоряет обработку)
+            vad_parameters=dict(
+                min_silence_duration_ms=500  # Минимальная длительность тишины
+            ),
+            condition_on_previous_text=False,  # Не зависит от предыдущего текста (быстрее)
+            compression_ratio_threshold=2.4,
+            log_prob_threshold=-1.0,
+            no_speech_threshold=0.6,
+            word_timestamps=True  # Для форматирования с таймкодами
+        )
 
         lines = []
-        for seg in result["segments"]:
-            start = format_timestamp(seg["start"])
-            end = format_timestamp(seg["end"])
-            text = seg["text"].strip()
+        for seg in segments:
+            start = format_timestamp(seg.start)
+            end = format_timestamp(seg.end)
+            text = seg.text.strip()
             lines.append(f"[{start} --> {end}]  {text}")
 
         return "\n".join(lines)
@@ -67,28 +106,54 @@ def transcribe_with_progress(audio_path: str, model_name: str,
         if progress_callback:
             progress_callback(10.0, f"Загрузка модели {model_name}...")
         
-        model = whisper.load_model(model_name)
+        model = _get_model(model_name)
         
         if progress_callback:
             progress_callback(25.0, "Модель загружена...")
         
         if progress_callback:
-            progress_callback(30.0, f"Распознавание ({file_size_mb:.1f} МБ)...")
+            device_info = f"GPU ({DEVICE})" if DEVICE == "cuda" else "CPU"
+            progress_callback(30.0, f"Распознавание на {device_info} ({file_size_mb:.1f} МБ)...")
         
-        result = model.transcribe(safe_path, verbose=False)
+        # Оптимизированные параметры для быстрой обработки
+        segments, info = model.transcribe(
+            safe_path,
+            beam_size=1,  # Быстрый поиск
+            vad_filter=True,  # Фильтрация тишины
+            vad_parameters=dict(
+                min_silence_duration_ms=500
+            ),
+            condition_on_previous_text=False,
+            compression_ratio_threshold=2.4,
+            log_prob_threshold=-1.0,
+            no_speech_threshold=0.6,
+            word_timestamps=True
+        )
+        
+        if progress_callback:
+            progress_callback(50.0, "Обработка сегментов...")
+        
+        lines = []
+        segment_count = 0
+        
+        # Обрабатываем генератор сегментов
+        for seg in segments:
+            start = format_timestamp(seg.start)
+            end = format_timestamp(seg.end)
+            text = seg.text.strip()
+            lines.append(f"[{start} --> {end}]  {text}")
+            segment_count += 1
+            
+            # Обновляем прогресс каждые 10 сегментов
+            if progress_callback and segment_count % 10 == 0:
+                progress = min(50.0 + (segment_count * 0.5), 90.0)
+                progress_callback(progress, f"Обработано сегментов: {segment_count}...")
         
         if progress_callback:
             progress_callback(90.0, "Форматирование...")
         
-        segments = result.get("segments", [])
-        lines = []
-        for seg in segments:
-            start = format_timestamp(seg["start"])
-            end = format_timestamp(seg["end"])
-            text = seg["text"].strip()
-            lines.append(f"[{start} --> {end}]  {text}")
-        
         return "\n".join(lines)
     
     except Exception as e:
+        logger.error(f"Transcription error: {e}", exc_info=True)
         raise

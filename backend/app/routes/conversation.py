@@ -173,9 +173,11 @@ async def send_message(request: SendMessageRequest):
                 "explanation": ai_result["explanation"]
             },
             "correction": {
+                "is_correct": ai_result["is_correct"],
                 "has_errors": not ai_result["is_correct"],
-                "corrected_text": ai_result["corrected_text"],
-                "explanation": ai_result["explanation"]
+                "original_text": request.text,
+                "corrected_text": ai_result["corrected_text"] if not ai_result["is_correct"] else request.text,
+                "explanation": ai_result["explanation"] if not ai_result["is_correct"] else ""
             }
         }
     except HTTPException:

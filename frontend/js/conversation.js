@@ -174,13 +174,13 @@ function toggleRecording() {
     
     if (!window.speechRecognitionManager) {
         console.error('speechRecognitionManager не загружен!');
-        showMessage('Голосовой ввод не поддерживается в этом браузере', 'error');
+        alert('Голосовой ввод не поддерживается в этом браузере. Убедитесь, что вы используете Chrome, Edge или другой браузер с поддержкой Web Speech API.');
         return;
     }
     
     if (!window.speechRecognitionManager.isSupported()) {
         console.warn('Web Speech API не поддерживается');
-        showMessage('Голосовой ввод не поддерживается в этом браузере', 'error');
+        alert('Голосовой ввод не поддерживается в этом браузере');
         return;
     }
     
@@ -189,22 +189,38 @@ function toggleRecording() {
         stopRecording();
     } else {
         console.log('Starting recording...');
-        startRecording();
+        // startRecording теперь async, но мы не ждём её завершения здесь
+        startRecording().catch(error => {
+            console.error('Error in startRecording:', error);
+            alert('Ошибка при запуске записи: ' + error.message);
+        });
     }
 }
 
-function startRecording() {
+// Экспортируем toggleRecording в window сразу после определения
+window.toggleRecording = toggleRecording;
+
+async function startRecording() {
     console.log('startRecording called');
     
+    // Если диалог не начат, начинаем его автоматически
     if (!currentConversationId) {
-        console.warn('No conversation started');
-        showMessage('Сначала начните новый диалог', 'warning');
-        return;
+        console.log('No conversation started, starting new conversation...');
+        try {
+            await startNewConversation();
+            // После начала диалога продолжаем запуск записи
+            // Небольшая задержка, чтобы убедиться, что диалог начат
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.error('Error starting conversation:', error);
+            alert('Не удалось начать диалог. Попробуйте ещё раз.');
+            return;
+        }
     }
     
     if (!window.speechRecognitionManager) {
         console.error('speechRecognitionManager не загружен!');
-        showMessage('Ошибка: модуль распознавания речи не загружен', 'error');
+        alert('Ошибка: модуль распознавания речи не загружен');
         return;
     }
     
@@ -216,11 +232,11 @@ function startRecording() {
         console.log('Start result:', started);
         
         if (!started) {
-            showMessage('Не удалось начать запись. Проверьте разрешения микрофона.', 'error');
+            alert('Не удалось начать запись. Проверьте разрешения микрофона.');
         }
     } catch (error) {
         console.error('Error starting recording:', error);
-        showMessage('Ошибка при запуске записи: ' + error.message, 'error');
+        alert('Ошибка при запуске записи: ' + error.message);
     }
 }
 
@@ -271,15 +287,16 @@ function handleSpeechResult(result) {
         // Показываем промежуточный результат
         if (result.interim) {
             messageInput.value = result.interim;
-        } else if (result.final) {
-            messageInput.value = result.final;
+        }
+        
+        // Если это финальный результат, устанавливаем текст и отправляем
+        if (result.isFinal && result.final && result.final.trim()) {
+            messageInput.value = result.final.trim();
             
-            // Если это финальный результат, автоматически отправляем
-            if (result.isFinal && result.final.trim()) {
-                setTimeout(() => {
-                    sendMessage();
-                }, 300);
-            }
+            // Автоматически отправляем сообщение
+            setTimeout(() => {
+                sendMessage();
+            }, 300);
         }
     }
 }
@@ -320,12 +337,22 @@ async function sendMessage() {
         return;
     }
     
+    // Если диалог не начат, начинаем его автоматически
     if (!currentConversationId) {
-        showMessage('Сначала начните новый диалог', 'warning');
-        return;
+        console.log('sendMessage: no conversation, starting new one...');
+        try {
+            await startNewConversation();
+            // Небольшая задержка, чтобы убедиться, что диалог начат
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.error('Error starting conversation:', error);
+            showMessage('Не удалось начать диалог. Попробуйте ещё раз.', 'error');
+            return;
+        }
     }
     
     const text = messageInput.value.trim();
+    console.log('sendMessage: sending text:', text);
     messageInput.value = '';
     
     // Добавляем сообщение пользователя в чат
@@ -335,7 +362,9 @@ async function sendMessage() {
     addLoadingMessage();
     
     try {
+        console.log('sendMessage: calling apiSendMessage with conversationId:', currentConversationId);
         const response = await apiSendMessage(currentConversationId, text);
+        console.log('sendMessage: received response:', response);
         
         // Убираем индикатор загрузки
         removeLoadingMessage();
@@ -381,18 +410,56 @@ function addBotMessage(text, correction = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message message-bot';
     
-    let content = `<div class="message-avatar">🤖</div>`;
-    content += `<div class="message-content-wrapper">`;
+    let content = `<div class="message-content-wrapper">`;
+    
+    // Статус проверки (согласно ТЗ)
+    if (correction) {
+        const isCorrect = correction.is_correct !== undefined ? correction.is_correct : !correction.has_errors;
+        if (isCorrect) {
+            content += `<div class="correction-status correct">✅ Correct!</div>`;
+        } else {
+            content += `<div class="correction-status incorrect">❌ Needs correction</div>`;
+        }
+    }
+    
+    // Основное сообщение бота
     content += `<div class="message-content">${escapeHtml(text)}</div>`;
     
-    if (correction && !correction.is_correct && correction.explanation) {
-        content += `<div class="message-correction-info">
-            <div class="correction-status">❌ Требуется исправление</div>
-            <div class="correction-explanation">${escapeHtml(correction.explanation)}</div>
-        </div>`;
-    } else if (correction && correction.is_correct) {
-        content += `<div class="correction-status correct">✅ Правильно!</div>`;
+    // Информация об исправлении (если есть ошибки)
+    const hasErrors = correction && (correction.has_errors || (correction.is_correct !== undefined && !correction.is_correct));
+    if (hasErrors && correction.corrected_text) {
+        const correctedText = correction.corrected_text || '';
+        const originalText = correction.original_text || '';
+        
+        // Показываем исправленный вариант, если он отличается от оригинального
+        if (correctedText && correctedText.trim() !== originalText.trim()) {
+            // Экранируем текст для использования в onclick (убираем переносы строк и экранируем кавычки)
+            const escapedCorrectedText = correctedText.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ').replace(/\r/g, '');
+            content += `<div class="message-correction-info">
+                <div class="correction-label">Правильно:</div>
+                <div class="correction-text">${escapeHtml(correctedText)}</div>
+                <button class="btn-play-voice" onclick="playTextToSpeech('${escapedCorrectedText}', '${currentLanguage}')" title="Прослушать голосом">
+                    🔊 Прослушать правильный вариант
+                </button>
+            </div>`;
+        }
+        
+        // Краткое объяснение
+        if (correction.explanation && correction.explanation.trim()) {
+            content += `<div class="correction-explanation">
+                <span class="explanation-icon">💡</span>
+                <span class="explanation-text">${escapeHtml(correction.explanation)}</span>
+            </div>`;
+        }
     }
+    
+    // Кнопка для прослушивания ответа бота голосом
+    const escapedText = text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+    content += `<div class="message-actions">
+        <button class="btn-play-voice" onclick="playTextToSpeech('${escapedText}', '${currentLanguage}')" title="Прослушать голосом">
+            🔊 Прослушать ответ
+        </button>
+    </div>`;
     
     content += `</div>`;
     
@@ -568,9 +635,63 @@ async function loadConversation(conversationId) {
     }
 }
 
+// Text-to-Speech для голосовых ответов
+window.playTextToSpeech = function(text, language = 'de') {
+    if (!('speechSynthesis' in window)) {
+        console.warn('Text-to-Speech не поддерживается в этом браузере');
+        alert('Голосовое воспроизведение не поддерживается в этом браузере');
+        return;
+    }
+    
+    // Останавливаем текущее воспроизведение
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Устанавливаем язык
+    const langMap = {
+        'de': 'de-DE',
+        'en': 'en-US',
+        'fr': 'fr-FR',
+        'es': 'es-ES'
+    };
+    utterance.lang = langMap[language] || language || 'de-DE';
+    
+    // Настройки голоса
+    utterance.rate = 0.9; // Скорость речи (чуть медленнее для лучшего понимания)
+    utterance.pitch = 1; // Высота голоса
+    utterance.volume = 1; // Громкость
+    
+    // Пытаемся выбрать подходящий голос
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice => 
+        voice.lang.startsWith(langMap[language] || language || 'de') && voice.localService
+    );
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+    
+    utterance.onerror = (event) => {
+        console.error('SpeechSynthesis error:', event);
+        alert('Ошибка воспроизведения голоса');
+    };
+    
+    window.speechSynthesis.speak(utterance);
+};
+
+// Загружаем голоса при загрузке страницы
+if ('speechSynthesis' in window) {
+    // Некоторые браузеры загружают голоса асинхронно
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = () => {
+            console.log('Voices loaded:', speechSynthesis.getVoices().length);
+        };
+    }
+}
+
 // Экспортируем функции для использования в HTML
+// (toggleRecording уже экспортирована сразу после определения)
 window.startNewConversation = startNewConversation;
-window.toggleRecording = toggleRecording;
 window.sendMessage = sendMessage;
 window.handleInputKeyPress = handleInputKeyPress;
 window.updateLanguage = updateLanguage;

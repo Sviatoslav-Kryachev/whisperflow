@@ -242,27 +242,13 @@ body.conversation-page {
     justify-content: flex-start;
 }
 
+/* Убираем аватары для более чистого вида в стиле Telegram */
 .message-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #667eea;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-    margin-right: 12px;
-}
-
-.message-user .message-avatar {
-    margin-right: 0;
-    margin-left: 12px;
-    background: #10b981;
+    display: none;
 }
 
 .message-content-wrapper {
-    max-width: 70%;
+    max-width: 75%;
     display: flex;
     flex-direction: column;
 }
@@ -276,15 +262,15 @@ body.conversation-page {
 }
 
 .message-user .message-content {
-    background: #667eea;
+    background: #0ea5e9; /* Telegram blue */
     color: white;
     border-bottom-right-radius: 4px;
 }
 
 .message-bot .message-content {
-    background: white;
-    color: #374151;
-    border: 1px solid #e5e7eb;
+    background: #dcfce7; /* Telegram green */
+    color: #166534;
+    border: none;
     border-bottom-left-radius: 4px;
 }
 
@@ -301,31 +287,102 @@ body.conversation-page {
 }
 
 .message-correction-info {
-    margin-top: 8px;
+    margin-top: 12px;
     padding: 12px;
-    background: #fee2e2;
+    background: #fef3c7;
     border-radius: 8px;
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid #f59e0b;
 }
 
 .correction-status {
     font-weight: 600;
-    font-size: 13px;
-    margin-bottom: 4px;
-}
-
-.correction-status.correct {
-    color: #065f46;
-    background: #d1fae5;
+    font-size: 14px;
+    margin-bottom: 8px;
     padding: 8px 12px;
     border-radius: 6px;
     display: inline-block;
 }
 
-.correction-explanation {
-    font-size: 13px;
+.correction-status.correct {
+    color: #065f46;
+    background: #d1fae5;
+}
+
+.correction-status.incorrect {
     color: #991b1b;
-    margin-top: 4px;
+    background: #fee2e2;
+}
+
+.correction-label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #92400e;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.correction-text {
+    font-size: 14px;
+    color: #78350f;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.correction-explanation {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #eff6ff;
+    border-radius: 6px;
+    border-left: 3px solid #3b82f6;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.explanation-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.explanation-text {
+    font-size: 13px;
+    color: #1e40af;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.message-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-play-voice {
+    padding: 6px 12px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-play-voice:hover {
+    background: #059669;
+}
+
+.message-correction-info .btn-play-voice {
+    margin-top: 8px;
+    background: #f59e0b;
+}
+
+.message-correction-info .btn-play-voice:hover {
+    background: #d97706;
 }
 
 /* Loading Message */
@@ -817,27 +874,13 @@ body.conversation-page {
     justify-content: flex-start;
 }
 
+/* Убираем аватары для более чистого вида в стиле Telegram */
 .message-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #667eea;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-    margin-right: 12px;
-}
-
-.message-user .message-avatar {
-    margin-right: 0;
-    margin-left: 12px;
-    background: #10b981;
+    display: none;
 }
 
 .message-content-wrapper {
-    max-width: 70%;
+    max-width: 75%;
     display: flex;
     flex-direction: column;
 }
@@ -851,15 +894,15 @@ body.conversation-page {
 }
 
 .message-user .message-content {
-    background: #667eea;
+    background: #0ea5e9; /* Telegram blue */
     color: white;
     border-bottom-right-radius: 4px;
 }
 
 .message-bot .message-content {
-    background: white;
-    color: #374151;
-    border: 1px solid #e5e7eb;
+    background: #dcfce7; /* Telegram green */
+    color: #166534;
+    border: none;
     border-bottom-left-radius: 4px;
 }
 
@@ -876,31 +919,102 @@ body.conversation-page {
 }
 
 .message-correction-info {
-    margin-top: 8px;
+    margin-top: 12px;
     padding: 12px;
-    background: #fee2e2;
+    background: #fef3c7;
     border-radius: 8px;
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid #f59e0b;
 }
 
 .correction-status {
     font-weight: 600;
-    font-size: 13px;
-    margin-bottom: 4px;
-}
-
-.correction-status.correct {
-    color: #065f46;
-    background: #d1fae5;
+    font-size: 14px;
+    margin-bottom: 8px;
     padding: 8px 12px;
     border-radius: 6px;
     display: inline-block;
 }
 
-.correction-explanation {
-    font-size: 13px;
+.correction-status.correct {
+    color: #065f46;
+    background: #d1fae5;
+}
+
+.correction-status.incorrect {
     color: #991b1b;
-    margin-top: 4px;
+    background: #fee2e2;
+}
+
+.correction-label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #92400e;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.correction-text {
+    font-size: 14px;
+    color: #78350f;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.correction-explanation {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #eff6ff;
+    border-radius: 6px;
+    border-left: 3px solid #3b82f6;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.explanation-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.explanation-text {
+    font-size: 13px;
+    color: #1e40af;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.message-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-play-voice {
+    padding: 6px 12px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-play-voice:hover {
+    background: #059669;
+}
+
+.message-correction-info .btn-play-voice {
+    margin-top: 8px;
+    background: #f59e0b;
+}
+
+.message-correction-info .btn-play-voice:hover {
+    background: #d97706;
 }
 
 /* Loading Message */

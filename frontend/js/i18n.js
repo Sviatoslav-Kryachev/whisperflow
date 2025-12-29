@@ -167,7 +167,58 @@ const TRANSLATIONS = {
         'footer.contact': 'Контакты',
         'footer.contactDesc': 'Есть вопросы или предложения?',
         'footer.copyright': '© 2025 WhisperFlow. Транскрипция аудио с помощью AI',
-        'footer.made': 'Сделано с ❤️ для работы с аудио'
+        'footer.made': 'Сделано с ❤️ для работы с аудио',
+        
+        // FAQ
+        'faq.title': 'Вопросы и ответы',
+        'faq.description': 'WhisperFlow — это мощный инструмент для преобразования аудио в текст с использованием технологии OpenAI Whisper. Мы обрабатываем файлы локально на вашем компьютере, обеспечивая максимальную приватность данных.',
+        'faq.contact': 'Если у вас остались вопросы:',
+        'faq.q1': 'Какие форматы аудио поддерживаются?',
+        'faq.a1': 'WhisperFlow поддерживает все популярные форматы: MP3, WAV, OGG, M4A, FLAC, WEBM и другие. Вы можете загружать аудиозаписи с диктофона, голосовые сообщения из мессенджеров, подкасты и любые другие аудиофайлы.',
+        'faq.q2': 'Как выбрать модель Whisper?',
+        'faq.a2': '<strong>Tiny</strong> — самая быстрая, подходит для черновиков.<br><strong>Base</strong> — оптимальный баланс скорости и качества (рекомендуется).<br><strong>Small</strong> — более точная, для важных записей.<br><strong>Medium/Large</strong> — максимальная точность для профессионального использования.',
+        'faq.q3': 'Могу ли я экспортировать транскрипцию в Word или Excel?',
+        'faq.a3': 'Да! После завершения транскрипции нажмите кнопку «Экспорт» и выберите нужный формат: DOCX для Microsoft Word, XLSX для Excel, SRT для субтитров или TXT для простого текста.',
+        'faq.q4': 'Какие языки распознаёт Whisper?',
+        'faq.a4': 'Whisper поддерживает более 90 языков, включая русский, английский, немецкий, французский, испанский, китайский и многие другие. Язык определяется автоматически.',
+        'faq.q5': 'Где хранятся мои файлы?',
+        'faq.a5': 'Все файлы обрабатываются и хранятся локально на вашем компьютере. Мы не отправляем ваши данные на внешние серверы, что гарантирует полную конфиденциальность.',
+        'faq.q6': 'Как организовать транскрипции по папкам?',
+        'faq.a6': 'Создайте папку в боковом меню, нажав «Новая папка». Затем у любой транскрипции нажмите кнопку «📂» и выберите нужную папку для перемещения.',
+        'faq.q7': 'Что делать, если транскрипция не удалась?',
+        'faq.a7': 'Нажмите кнопку «Повтор» рядом с неудавшейся транскрипцией. Если ошибка повторяется, попробуйте использовать меньшую модель (Tiny или Base) или проверьте, что аудиофайл не повреждён.',
+        
+        // CTA
+        'cta.title': 'Готовы преобразовать аудио в текст?',
+        'cta.subtitle': 'Давайте сделаем это с помощью нашего онлайн-конвертера аудио в текст!',
+        'cta.button': 'Преобразование аудио в текст',
+        
+        // Filters
+        'search.placeholder': 'Поиск по файлам и тексту...',
+        'sort.dateDesc': '📅 Дата (новые)',
+        'sort.dateAsc': '📅 Дата (старые)',
+        'sort.nameAsc': '📝 Имя (А-Я)',
+        'sort.nameDesc': '📝 Имя (Я-А)',
+        'sort.sizeDesc': '💾 Размер (большие)',
+        'sort.sizeAsc': '💾 Размер (маленькие)',
+        'sort.favoriteDesc': '⭐ Избранное',
+        'filters.toggle': '🔽 Фильтры',
+        'filters.toggleTitle': 'Показать фильтры',
+        'filters.hide': '🔼 Скрыть фильтры',
+        'filter.status': 'Статус:',
+        'filter.status.all': '📋 Все',
+        'filter.status.completed': '✅ Готово',
+        'filter.status.processing': '⚙️ Обработка',
+        'filter.status.pending': '⏳ Ожидание',
+        'filter.status.failed': '❌ Ошибка',
+        'filter.model': 'Модель:',
+        'filter.model.all': 'Все',
+        'filter.dateFrom': 'Дата от:',
+        'filter.dateTo': 'Дата до:',
+        'filter.favorite': 'Только избранное',
+        'filters.clear': 'Очистить фильтры',
+        'tags.title': 'Теги:',
+        'tags.noTags': 'Нет тегов'
     },
     
     en: {
@@ -319,7 +370,58 @@ const TRANSLATIONS = {
         'footer.contact': 'Contact',
         'footer.contactDesc': 'Have questions or suggestions?',
         'footer.copyright': '© 2025 WhisperFlow. AI-powered audio transcription',
-        'footer.made': 'Made with ❤️ for audio work'
+        'footer.made': 'Made with ❤️ for audio work',
+        
+        // FAQ
+        'faq.title': 'Questions and Answers',
+        'faq.description': 'WhisperFlow is a powerful tool for converting audio to text using OpenAI Whisper technology. We process files locally on your computer, ensuring maximum data privacy.',
+        'faq.contact': 'If you have any questions:',
+        'faq.q1': 'What audio formats are supported?',
+        'faq.a1': 'WhisperFlow supports all popular formats: MP3, WAV, OGG, M4A, FLAC, WEBM and more. You can upload recordings from a voice recorder, voice messages from messengers, podcasts, and any other audio files.',
+        'faq.q2': 'How to choose a Whisper model?',
+        'faq.a2': '<strong>Tiny</strong> — fastest, suitable for drafts.<br><strong>Base</strong> — optimal balance of speed and quality (recommended).<br><strong>Small</strong> — more accurate, for important recordings.<br><strong>Medium/Large</strong> — maximum accuracy for professional use.',
+        'faq.q3': 'Can I export transcription to Word or Excel?',
+        'faq.a3': 'Yes! After completing transcription, click the «Export» button and select the desired format: DOCX for Microsoft Word, XLSX for Excel, SRT for subtitles, or TXT for plain text.',
+        'faq.q4': 'What languages does Whisper recognize?',
+        'faq.a4': 'Whisper supports over 90 languages, including Russian, English, German, French, Spanish, Chinese, and many others. Language is detected automatically.',
+        'faq.q5': 'Where are my files stored?',
+        'faq.a5': 'All files are processed and stored locally on your computer. We do not send your data to external servers, which guarantees complete confidentiality.',
+        'faq.q6': 'How to organize transcriptions into folders?',
+        'faq.a6': 'Create a folder in the side menu by clicking «New Folder». Then, for any transcription, click the «📂» button and select the desired folder to move it to.',
+        'faq.q7': 'What to do if transcription failed?',
+        'faq.a7': 'Click the «Retry» button next to the failed transcription. If the error repeats, try using a smaller model (Tiny or Base) or check that the audio file is not corrupted.',
+        
+        // CTA
+        'cta.title': 'Ready to convert audio to text?',
+        'cta.subtitle': 'Let\'s do it with our online audio to text converter!',
+        'cta.button': 'Convert audio to text',
+        
+        // Filters
+        'search.placeholder': 'Search files and text...',
+        'sort.dateDesc': '📅 Date (newest)',
+        'sort.dateAsc': '📅 Date (oldest)',
+        'sort.nameAsc': '📝 Name (A-Z)',
+        'sort.nameDesc': '📝 Name (Z-A)',
+        'sort.sizeDesc': '💾 Size (largest)',
+        'sort.sizeAsc': '💾 Size (smallest)',
+        'sort.favoriteDesc': '⭐ Favorite',
+        'filters.toggle': '🔽 Filters',
+        'filters.toggleTitle': 'Show filters',
+        'filters.hide': '🔼 Hide filters',
+        'filter.status': 'Status:',
+        'filter.status.all': '📋 All',
+        'filter.status.completed': '✅ Completed',
+        'filter.status.processing': '⚙️ Processing',
+        'filter.status.pending': '⏳ Pending',
+        'filter.status.failed': '❌ Failed',
+        'filter.model': 'Model:',
+        'filter.model.all': 'All',
+        'filter.dateFrom': 'Date from:',
+        'filter.dateTo': 'Date to:',
+        'filter.favorite': 'Only favorites',
+        'filters.clear': 'Clear filters',
+        'tags.title': 'Tags:',
+        'tags.noTags': 'No tags'
     },
     
     de: {
@@ -471,7 +573,31 @@ const TRANSLATIONS = {
         'footer.contact': 'Kontakt',
         'footer.contactDesc': 'Haben Sie Fragen oder Vorschläge?',
         'footer.copyright': '© 2025 WhisperFlow. KI-gestützte Audio-Transkription',
-        'footer.made': 'Mit ❤️ für Audioarbeit gemacht'
+        'footer.made': 'Mit ❤️ für Audioarbeit gemacht',
+        
+        // FAQ
+        'faq.title': 'Fragen und Antworten',
+        'faq.description': 'WhisperFlow ist ein leistungsstarkes Tool zur Umwandlung von Audio in Text mit der OpenAI Whisper-Technologie. Wir verarbeiten Dateien lokal auf Ihrem Computer und gewährleisten maximale Datenschutz.',
+        'faq.contact': 'Wenn Sie Fragen haben:',
+        'faq.q1': 'Welche Audioformate werden unterstützt?',
+        'faq.a1': 'WhisperFlow unterstützt alle gängigen Formate: MP3, WAV, OGG, M4A, FLAC, WEBM und mehr. Sie können Aufnahmen vom Diktiergerät, Sprachnachrichten aus Messengern, Podcasts und andere Audiodateien hochladen.',
+        'faq.q2': 'Wie wähle ich ein Whisper-Modell?',
+        'faq.a2': '<strong>Tiny</strong> — am schnellsten, geeignet für Entwürfe.<br><strong>Base</strong> — optimales Gleichgewicht zwischen Geschwindigkeit und Qualität (empfohlen).<br><strong>Small</strong> — genauer, für wichtige Aufnahmen.<br><strong>Medium/Large</strong> — maximale Genauigkeit für professionelle Nutzung.',
+        'faq.q3': 'Kann ich die Transkription nach Word oder Excel exportieren?',
+        'faq.a3': 'Ja! Nach Abschluss der Transkription klicken Sie auf die Schaltfläche «Exportieren» und wählen Sie das gewünschte Format: DOCX für Microsoft Word, XLSX für Excel, SRT für Untertitel oder TXT für einfachen Text.',
+        'faq.q4': 'Welche Sprachen erkennt Whisper?',
+        'faq.a4': 'Whisper unterstützt über 90 Sprachen, einschließlich Russisch, Englisch, Deutsch, Französisch, Spanisch, Chinesisch und viele andere. Die Sprache wird automatisch erkannt.',
+        'faq.q5': 'Wo werden meine Dateien gespeichert?',
+        'faq.a5': 'Alle Dateien werden lokal auf Ihrem Computer verarbeitet und gespeichert. Wir senden Ihre Daten nicht an externe Server, was vollständige Vertraulichkeit garantiert.',
+        'faq.q6': 'Wie organisiere ich Transkriptionen in Ordnern?',
+        'faq.a6': 'Erstellen Sie einen Ordner im Seitenmenü, indem Sie auf «Neuer Ordner» klicken. Klicken Sie dann bei jeder Transkription auf die Schaltfläche «📂» und wählen Sie den gewünschten Ordner zum Verschieben aus.',
+        'faq.q7': 'Was soll ich tun, wenn die Transkription fehlgeschlagen ist?',
+        'faq.a7': 'Klicken Sie auf die Schaltfläche «Wiederholen» neben der fehlgeschlagenen Transkription. Wenn der Fehler erneut auftritt, versuchen Sie, ein kleineres Modell (Tiny oder Base) zu verwenden oder überprüfen Sie, ob die Audiodatei nicht beschädigt ist.',
+        
+        // CTA
+        'cta.title': 'Bereit, Audio in Text umzuwandeln?',
+        'cta.subtitle': 'Lassen Sie uns das mit unserem Online-Audio-zu-Text-Konverter tun!',
+        'cta.button': 'Audio in Text umwandeln'
     }
 };
 
@@ -522,7 +648,14 @@ function updatePageTranslations() {
     // Update elements with data-i18n attribute
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        el.textContent = t(key);
+        const translation = t(key);
+        // Если перевод содержит HTML-теги (например, <strong>, <br>), используем innerHTML
+        // Иначе используем textContent для безопасности
+        if (translation.includes('<') && translation.includes('>')) {
+            el.innerHTML = translation;
+        } else {
+            el.textContent = translation;
+        }
     });
     
     // Update placeholders
@@ -606,4 +739,5 @@ function closeMobileSidebar() {
 // Initialize language on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateLanguageSelector();
+    updatePageTranslations();
 });
