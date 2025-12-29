@@ -1,7 +1,7 @@
 <div class="header">
     <div class="header-content">
         <div class="header-logo">
-            <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">☰</button>
+            <button class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
             <h2>🎙️ WhisperFlow</h2>
         </div>
         <nav class="header-nav">
@@ -53,4 +53,53 @@
             <a href="#" id="logoutLink" class="nav-link nav-link-logout" data-i18n="nav.logout">Выйти</a>
         </nav>
     </div>
+    <!-- Мобильное навигационное меню -->
+    <nav class="mobile-nav-menu" id="mobileNavMenu">
+        <a href="dashboard.html" class="nav-link" data-i18n="nav.dashboard" onclick="closeMobileNav()">Dashboard</a>
+        <a href="conversation.html" class="nav-link" target="_blank" data-i18n="nav.languageTrainer" onclick="closeMobileNav()">💬 Языковой тренажёр</a>
+        <a href="#how-to-use" class="nav-link" data-i18n="nav.howto" onclick="closeMobileNav()">Инструкция</a>
+        <a href="#faq" class="nav-link" data-i18n="nav.faq" onclick="closeMobileNav()">FAQ</a>
+        
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" id="mobileThemeToggle" onclick="toggleTheme()" title="Переключить тему">
+            <svg id="mobileThemeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path class="theme-icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <circle class="theme-icon-sun" cx="12" cy="12" r="5" style="display: none;"></circle>
+                <line class="theme-icon-sun" x1="12" y1="1" x2="12" y2="3" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="12" y1="21" x2="12" y2="23" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="4.22" y1="4.22" x2="5.64" y2="5.64" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="18.36" y1="18.36" x2="19.78" y2="19.78" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="1" y1="12" x2="3" y2="12" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="21" y1="12" x2="23" y2="12" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="4.22" y1="19.78" x2="5.64" y2="18.36" style="display: none;"></line>
+                <line class="theme-icon-sun" x1="18.36" y1="5.64" x2="19.78" y2="4.22" style="display: none;"></line>
+            </svg>
+            <span data-i18n="nav.theme">Тема</span>
+        </button>
+        
+        <!-- Language Selector -->
+        <div class="language-selector">
+            <button class="lang-btn" onclick="toggleLanguageDropdown()">
+                <span id="mobileCurrentLangFlag">🇷🇺</span>
+                <span id="mobileCurrentLangName">Русский</span>
+                <span class="lang-arrow">▼</span>
+            </button>
+            <div id="mobileLanguageDropdown" class="language-dropdown">
+                <div class="lang-option" onclick="setLanguage('ru')">
+                    <span class="lang-flag">🇷🇺</span>
+                    <span class="lang-name">Русский</span>
+                </div>
+                <div class="lang-option" onclick="setLanguage('en')">
+                    <span class="lang-flag">🇬🇧</span>
+                    <span class="lang-name">English</span>
+                </div>
+                <div class="lang-option" onclick="setLanguage('de')">
+                    <span class="lang-flag">🇩🇪</span>
+                    <span class="lang-name">Deutsch</span>
+                </div>
+            </div>
+        </div>
+        
+        <a href="#" id="mobileLogoutLink" class="nav-link nav-link-logout" data-i18n="nav.logout" onclick="closeMobileNav()">Выйти</a>
+    </nav>
 </div>

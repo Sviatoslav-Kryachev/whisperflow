@@ -5,6 +5,15 @@
 
 html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+html, body {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
 }
 
 :root {
@@ -45,6 +54,16 @@ body {
     background-color: var(--bg-secondary);
     min-height: 100vh;
     transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+}
+
+/* Предотвращение горизонтального скролла уже установлено выше в * { box-sizing: border-box; } */
+
+img, video, iframe {
+    max-width: 100%;
+    height: auto;
 }
 
 /* Страница логина */
@@ -2118,26 +2137,30 @@ progress {
     /* Header adjustments */
     .header-content {
         padding: 12px 16px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 12px;
+        overflow-x: hidden;
     }
     
     .header-logo h2 {
         font-size: 20px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
+    /* Скрываем обычное навигационное меню на мобильных */
     .header-nav {
-        gap: 12px;
+        display: none !important;
     }
     
-    .nav-link {
-        padding: 6px 12px;
-        font-size: 13px;
+    /* Мобильное меню должно быть видимым при открытии */
+    .mobile-nav-menu {
+        display: none;
     }
     
-    .lang-btn {
-        padding: 6px 10px;
-        font-size: 13px;
+    .mobile-nav-menu.show {
+        display: block;
     }
     
     /* Dashboard */
@@ -2414,33 +2437,30 @@ progress {
     /* Header */
     .header-content {
         padding: 10px 12px;
+        flex-wrap: nowrap;
+        overflow-x: hidden;
     }
     
     .header-logo h2 {
         font-size: 18px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
+    /* Скрываем обычное навигационное меню на мобильных */
     .header-nav {
-        gap: 8px;
+        display: none !important;
     }
     
-    .nav-link {
-        padding: 5px 8px;
-        font-size: 12px;
-    }
-    
-    .lang-btn {
-        padding: 5px 8px;
-        font-size: 12px;
-        gap: 4px;
-    }
-    
-    #currentLangName {
+    /* Мобильное меню */
+    .mobile-nav-menu {
+        top: 55px;
         display: none;
     }
     
-    .lang-arrow {
-        display: none;
+    .mobile-nav-menu.show {
+        display: block;
     }
     
     /* Dashboard */
@@ -2640,7 +2660,7 @@ progress {
 }
 
 /* ================================
-   MOBILE SIDEBAR TOGGLE
+   MOBILE MENU BUTTON
    ================================ */
 .mobile-menu-btn {
     display: none;
@@ -2652,6 +2672,12 @@ progress {
     cursor: pointer;
     font-size: 20px;
     line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 768px) {
@@ -5294,26 +5320,30 @@ progress {
     /* Header adjustments */
     .header-content {
         padding: 12px 16px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 12px;
+        overflow-x: hidden;
     }
     
     .header-logo h2 {
         font-size: 20px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
+    /* Скрываем обычное навигационное меню на мобильных */
     .header-nav {
-        gap: 12px;
+        display: none !important;
     }
     
-    .nav-link {
-        padding: 6px 12px;
-        font-size: 13px;
+    /* Мобильное меню должно быть видимым при открытии */
+    .mobile-nav-menu {
+        display: none;
     }
     
-    .lang-btn {
-        padding: 6px 10px;
-        font-size: 13px;
+    .mobile-nav-menu.show {
+        display: block;
     }
     
     /* Dashboard */
@@ -5590,33 +5620,30 @@ progress {
     /* Header */
     .header-content {
         padding: 10px 12px;
+        flex-wrap: nowrap;
+        overflow-x: hidden;
     }
     
     .header-logo h2 {
         font-size: 18px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
+    /* Скрываем обычное навигационное меню на мобильных */
     .header-nav {
-        gap: 8px;
+        display: none !important;
     }
     
-    .nav-link {
-        padding: 5px 8px;
-        font-size: 12px;
-    }
-    
-    .lang-btn {
-        padding: 5px 8px;
-        font-size: 12px;
-        gap: 4px;
-    }
-    
-    #currentLangName {
+    /* Мобильное меню */
+    .mobile-nav-menu {
+        top: 55px;
         display: none;
     }
     
-    .lang-arrow {
-        display: none;
+    .mobile-nav-menu.show {
+        display: block;
     }
     
     /* Dashboard */
@@ -5816,7 +5843,7 @@ progress {
 }
 
 /* ================================
-   MOBILE SIDEBAR TOGGLE
+   MOBILE MENU BUTTON
    ================================ */
 .mobile-menu-btn {
     display: none;
@@ -5828,6 +5855,12 @@ progress {
     cursor: pointer;
     font-size: 20px;
     line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 768px) {
