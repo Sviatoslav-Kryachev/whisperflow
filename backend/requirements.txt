@@ -15,3 +15,4 @@ sentencepiece
 protobuf
 openai
 language-tool-python
+psycopg2-binary
