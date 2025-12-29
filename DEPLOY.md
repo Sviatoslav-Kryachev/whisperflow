@@ -52,6 +52,7 @@ https://whisperflow-production.up.railway.app
 
 ## Важные замечания
 
+- **FFmpeg**: Установлен через `nixpacks.toml` (требуется для faster-whisper)
 - **GPU**: Railway автоматически определит и использует GPU, если доступен
 - **База данных**: SQLite будет создана автоматически при первом запуске
 - **Storage**: Папка `storage/` будет создана автоматически
