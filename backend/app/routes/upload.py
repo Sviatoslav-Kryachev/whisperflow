@@ -111,6 +111,16 @@ async def check_duplicate(filename: str = Query(..., description="Имя фай�
 
 @router.post("/upload")
 async def upload(file: UploadFile, model: str = Form("base"), language: str = Form("auto"), speaker_recognition: str = Form("false"), background_tasks: BackgroundTasks = None):
+    # Ограничение моделей для Railway
+    # С планом Hobby (8 GB RAM) можно использовать tiny, base и small
+    # Medium и Large всё ещё слишком тяжёлые
+    allowed_models = ["tiny", "base", "small"]
+    if model not in allowed_models:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Модель '{model}' слишком большая для этого сервера. Пожалуйста, используйте 'tiny', 'base' или 'small' для стабильной работы."
+        )
+    
     uid = str(uuid.uuid4())
     audio_path = AUDIO_DIR / f"{uid}_{file.filename}"
     db = SessionLocal()
@@ -330,6 +340,16 @@ async def retry_transcript(file_id: str, background_tasks: BackgroundTasks = Non
         if transcript.status == "processing":
             raise HTTPException(status_code=400, detail="Транскрипция уже обрабатывается")
         
+        # Ограничение моделей для Railway
+        # С планом Hobby (8 GB RAM) можно использовать tiny, base и small
+        allowed_models = ["tiny", "base", "small"]
+        model = transcript.model
+        if model not in allowed_models:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Модель '{model}' слишком большая для этого сервера. Пожалуйста, создайте новую транскрипцию с моделью 'tiny', 'base' или 'small'."
+            )
+        
         # Ищем аудиофайл
         audio_files = list(AUDIO_DIR.glob(f"{file_id}_*"))
         if not audio_files:
@@ -343,7 +363,6 @@ async def retry_transcript(file_id: str, background_tasks: BackgroundTasks = Non
         transcript.error_message = None
         transcript.completed_at = None
         transcript.status_message = "Подготовка..."
-        model = transcript.model
         db.commit()
         
         # Копируем файл во временную директорию
