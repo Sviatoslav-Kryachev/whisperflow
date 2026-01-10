@@ -1,6 +1,5 @@
-version: '3.8'
-
 # Конфигурация для использования внешнего PostgreSQL (установленного нативно на VPS)
+# Примечание: version больше не нужен в новых версиях Docker Compose
 # PostgreSQL должен быть установлен и настроен на VPS:
 # - База данных: whisperflow_db
 # - Пользователь: whisperflow_user
