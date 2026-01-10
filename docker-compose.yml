@@ -1,19 +1,25 @@
 version: '3.8'
 
+# Конфигурация для использования внешнего PostgreSQL (установленного нативно на VPS)
+# PostgreSQL должен быть установлен и настроен на VPS:
+# - База данных: whisperflow_db
+# - Пользователь: whisperflow_user
+# - Пароль: (из .env файла)
+
 services:
   app:
     build: .
-    ports:
-      - "8000:8000"
+    # Используем network_mode: host для прямого доступа к localhost PostgreSQL
+    # Это самый простой способ подключиться к PostgreSQL на хосте из Docker
+    network_mode: host
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://whisperflow_user:whisperflow_password@db:5432/whisperflow}
+      # DATABASE_URL указывает на localhost, так как используем network_mode: host
+      # Измените имя базы данных на whisperflow_db если у вас другое имя
+      - DATABASE_URL=${DATABASE_URL:-postgresql://whisperflow_user:whisperflow_password@localhost:5432/whisperflow_db}
       - SECRET_KEY=${SECRET_KEY:-change-this-to-random-secret-key}
       - PORT=8000
     volumes:
       - ./backend/storage:/app/backend/storage
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -22,24 +28,18 @@ services:
       retries: 3
       start_period: 40s
 
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=whisperflow
-      - POSTGRES_USER=whisperflow_user
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-whisperflow_password}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U whisperflow_user -d whisperflow"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+# Контейнер db не нужен, так как PostgreSQL установлен нативно на VPS
 
-volumes:
-  postgres_data:
-    driver: local
+# Альтернатива: Если нужно использовать порты без network_mode: host,
+# раскомментируйте следующее и закомментируйте network_mode: host выше:
+# 
+# ports:
+#   - "8000:8000"
+# 
+# И измените DATABASE_URL на:
+# - DATABASE_URL=postgresql://whisperflow_user:whisperflow_password@host.docker.internal:5432/whisperflow_db
+# 
+# Или настройте pg_hba.conf для доступа из Docker сети (172.17.0.0/16)
 
 
 

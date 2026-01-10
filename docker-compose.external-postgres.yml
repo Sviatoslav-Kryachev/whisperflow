@@ -1,0 +1,31 @@
+version: '3.8'
+
+# Конфигурация для использования внешнего PostgreSQL (установленного на VPS)
+# Использовать: docker compose -f docker-compose.external-postgres.yml up -d --build
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # DATABASE_URL указывает на хост PostgreSQL (не на контейнер db)
+      # Используйте host.docker.internal для доступа к хост-машине из Docker
+      # Или настройте network_mode: host для прямого доступа к localhost
+      - DATABASE_URL=${DATABASE_URL:-postgresql://whisperflow_user:whisperflow_password@host.docker.internal:5432/whisperflow_db}
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-random-secret-key}
+      - PORT=8000
+    volumes:
+      - ./backend/storage:/app/backend/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Использовать network_mode: host для прямого доступа к localhost PostgreSQL
+    # Раскомментируйте следующую строку, если host.docker.internal не работает:
+    # network_mode: host
+
+# Примечание: Контейнер db не нужен, так как PostgreSQL установлен на VPS
