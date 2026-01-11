@@ -448,6 +448,7 @@ window.renderTranscripts = function renderTranscripts(transcripts) {
                 }
                 <p class="transcript-meta">
                     ${t('transcript.meta.model')}: ${transcript.model} | 
+                    ${transcript.duration_seconds ? `Длительность: ${formatDurationMinutes(transcript.duration_seconds)} | ` : ''}
                     ${transcript.status === 'completed' ? `${t('transcript.meta.size')}: ${formatSize(transcript.size)} | ` : ''}
                     ${transcript.created_at ? `${t('transcript.meta.created')}: ${formatDate(transcript.created_at)}` : ''}
                 </p>
@@ -583,6 +584,19 @@ function formatElapsedTime(seconds) {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secsRemainder).padStart(2, '0')}`;
     }
     return `${String(minutes).padStart(2, '0')}:${String(secsRemainder).padStart(2, '0')}`;
+}
+
+function formatDurationMinutes(seconds) {
+    // Форматирует длительность аудио в минутах (например, "3:41" или "0:15")
+    if (!seconds || seconds <= 0) {
+        return "—";
+    }
+    
+    const totalSeconds = Math.floor(seconds);
+    const minutes = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    
+    return `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
 // Обновление таймера для одного файла

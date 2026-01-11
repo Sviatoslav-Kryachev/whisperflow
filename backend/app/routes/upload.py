@@ -6,15 +6,48 @@ from ..database import SessionLocal
 from ..whisper_service import transcribe, transcribe_with_progress
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pydantic import BaseModel
 import uuid
 import tempfile
 import logging
 from difflib import SequenceMatcher
 
+try:
+    from mutagen import File as MutagenFile
+    from mutagen.mp3 import MP3
+    from mutagen.wave import WAVE
+    from mutagen.oggvorbis import OggVorbis
+    from mutagen.mp4 import MP4
+    from mutagen.flac import FLAC
+    MUTAGEN_AVAILABLE = True
+except ImportError:
+    MUTAGEN_AVAILABLE = False
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def get_audio_duration(audio_path: Path) -> Optional[float]:
+    """Получить длительность аудио файла в секундах"""
+    if not MUTAGEN_AVAILABLE:
+        logger.warning("mutagen not available, cannot get audio duration")
+        return None
+    
+    try:
+        audio_file = MutagenFile(str(audio_path))
+        if audio_file is None:
+            logger.warning(f"Could not determine audio type for {audio_path}")
+            return None
+        
+        duration = audio_file.info.length if hasattr(audio_file.info, 'length') else None
+        if duration:
+            return float(duration)
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Error getting audio duration for {audio_path}: {e}")
+        return None
 
 
 def process_transcription_background(file_id: str, temp_path: Path, model: str, language: str = None, speaker_recognition: bool = False):
@@ -147,6 +180,11 @@ async def upload(file: UploadFile, model: str = Form("base"), language: str = Fo
         content = await file.read()
         audio_path.write_bytes(content)
 
+        # Получаем длительность аудио
+        duration_seconds = get_audio_duration(audio_path)
+        if duration_seconds:
+            logger.info(f"Audio duration for {file.filename}: {duration_seconds:.2f} seconds")
+
         # Создаём запись в БД
         transcript = Transcript(
             file_id=uid,
@@ -156,6 +194,7 @@ async def upload(file: UploadFile, model: str = Form("base"), language: str = Fo
             status="pending",
             progress=10.0,
             status_message="Загрузка файла...",
+            duration_seconds=duration_seconds,
             created_at=datetime.utcnow()
         )
         db.add(transcript)

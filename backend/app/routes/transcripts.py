@@ -59,6 +59,7 @@ async def list_transcripts(folder_id: Optional[int] = Query(None), recent: bool 
                 "model": t.model,
                 "preview": preview,
                 "size": size,
+                "duration_seconds": t.duration_seconds,
                 "created_at": t.created_at.isoformat() if t.created_at else None,
                 "completed_at": t.completed_at.isoformat() if t.completed_at else None,
                 "error_message": t.error_message

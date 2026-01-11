@@ -54,6 +54,13 @@ def migrate():
         else:
             print("[OK] language column already exists")
         
+        # Add duration_seconds if missing
+        if 'duration_seconds' not in columns:
+            cursor.execute("ALTER TABLE transcripts ADD COLUMN duration_seconds REAL")
+            print("[OK] duration_seconds column added to transcripts")
+        else:
+            print("[OK] duration_seconds column already exists")
+        
         # 3. Create transcript_ai table if not exists
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS transcript_ai (
@@ -174,6 +181,13 @@ def migrate():
             print("[OK] language column added to transcripts")
         else:
             print("[OK] language column already exists")
+        
+        # Add duration_seconds if missing
+        if 'duration_seconds' not in columns:
+            cursor.execute("ALTER TABLE transcripts ADD COLUMN duration_seconds REAL")
+            print("[OK] duration_seconds column added to transcripts")
+        else:
+            print("[OK] duration_seconds column already exists")
         
         # 3. Create transcript_ai table if not exists
         cursor.execute("""
